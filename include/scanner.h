@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stack>
 
 #ifndef SCANNER
 #define SCANNER
@@ -24,6 +25,12 @@ enum Token
 	DOT
 };
 
+struct TokenStatePair
+{
+	State state = ERROR;
+	Token token = INCOMPLETE;
+};
+
 class Scanner
 { 
 	public:
@@ -44,7 +51,7 @@ class Scanner
 		int cur_pos;
 		int fence; // Used to prevent rollback into incorrect buffer
 
-		int last_accepting_pos;
+		std::stack<TokenStatePair> stack;
 		std::string lexeme;
 };
 #endif
