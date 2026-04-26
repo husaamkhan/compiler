@@ -10,6 +10,7 @@ void Scanner::init(std::istream* stream)
 {
 	input_stream = stream;
 	int cur_pos = 0;
+	int fence = 0;
 }
 
 void Scanner::fillBuffer(int pos)
@@ -21,7 +22,7 @@ char Scanner::nextChar()
 {
 	char c = this->double_buffer[this->cur_pos];
 	
-	if (c != EOF)
+	if (c != EOF) // EOF results in ERROR state, which ends the scanning loop and triggers rollback
 	{
 		this->cur_pos = (this->cur_pos + 1) % 2*BUFFER_LENGTH;
 
