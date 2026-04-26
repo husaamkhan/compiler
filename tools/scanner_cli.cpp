@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string.h>
+#include "scanner.h"
 
 using namespace std;
 
@@ -63,6 +65,8 @@ int main(int argc, char** argv)
 		printUsage();
 	}
 
-	cout << input << endl;
+	istringstream input_stream(input);
+	Scanner scanner = new Scanner();
+	scanner.scan(input_stream);
 }
 
