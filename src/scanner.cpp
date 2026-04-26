@@ -45,9 +45,10 @@ void Scanner::rollBack()
 	{
 		if (last_accepting_pos <= fence)
 		{
-			throw std::runtime_error(std::string("Error during scanner rollback! Attempted to rollback into invalid context.\n") +
-						"Fence: " + std::to_string(fence) + "\n" +
-						"Last accepting position: " + std::to_string(last_accepting_pos));
+			throw std::runtime_error(
+					std::string("Error during scanner rollback! Attempted to rollback into invalid context.\n") +
+					"Fence: " + std::to_string(fence) + "\n" +
+					"Last accepting position: " + std::to_string(last_accepting_pos));
 		}
 	}
 	else if (fence == 0)
