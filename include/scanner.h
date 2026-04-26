@@ -43,5 +43,7 @@ class Scanner
 		int cur_pos;
 		int fence; // Used to prevent rollback into incorrect buffer
 
+
+		int last_accepting_pos;
 };
 #endif

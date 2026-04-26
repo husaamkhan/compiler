@@ -8,9 +8,9 @@ Scanner::~Scanner()
 
 void Scanner::init(std::istream* stream)
 {
-	input_stream = stream;
-	int cur_pos = 0;
-	int fence = 0;
+	this->input_stream = stream;
+	this->cur_pos = 0;
+	this->fence = 0;
 }
 
 void Scanner::fillBuffer(int pos)
