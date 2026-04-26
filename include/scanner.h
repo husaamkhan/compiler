@@ -36,6 +36,7 @@ class Scanner
 	private:
 		void fillBuffer(int pos);
 		char nextChar();
+		void rollBack();
 
 		std::istream* input_stream;
 
@@ -43,7 +44,7 @@ class Scanner
 		int cur_pos;
 		int fence; // Used to prevent rollback into incorrect buffer
 
-
 		int last_accepting_pos;
+		std::string lexeme;
 };
 #endif
