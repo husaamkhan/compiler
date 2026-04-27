@@ -1,9 +1,5 @@
-#include <cstdio>
 #include <iostream>
 #include <fstream>
-#include <mutex>
-#include <sstream>
-#include <string.h>
 #include "scanner.h"
 
 using namespace std;
@@ -15,21 +11,23 @@ void printUsage()
 		<< "./scanner_cli <file>    	-    Read input from file\n";
 }
 
-string readFromFile(string path)
+void printTokens(queue<Token> tokens)
 {
-	ifstream file(path);
-
-	if (!file.is_open())
+	while(!tokens.empty())
 	{
-		cerr << "Could not open file: " << path << endl;
+		string category = "";
+		switch(tokens.front().category)
+		{
+			case BOOLEAN:
+				category = "BOOLEAN";
+				break;
+			default:
+				category = "NONE";
+				break;
+		}
+
+		cout << string("[") + tokens.front().lexeme + ": " + category << endl;
 	}
-
-	// Read contents of file to string
-	string contents((
-				std::istreambuf_iterator<char>(file)),
-				std::istreambuf_iterator<char>());
-
-	return contents;
 }
 
 int main(int argc, char** argv)
@@ -39,13 +37,12 @@ int main(int argc, char** argv)
 		printUsage();
 	}
 
-	queue<Token> token_queue;
 	Scanner* scanner = new Scanner();
 
 	ifstream file;
 	if (argc == 1)
 	{
-		scanner->init(&cin, &token_queue);
+		scanner->init(&cin);
 	}
 	else
 	{
@@ -55,12 +52,14 @@ int main(int argc, char** argv)
 			cerr<< "Could not open file: " << argv[2] << endl;
 		}
 
-		scanner->init(&file, &token_queue);
+		scanner->init(&file);
 	}
 
 	try
 	{
-		scanner->scan();
+		queue<Token> token_queue;
+		scanner->scan(&token_queue);
+		printTokens(token_queue);
 	}
 	catch (exception& e)
 	{

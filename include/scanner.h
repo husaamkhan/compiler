@@ -22,8 +22,8 @@ class Scanner
 		Scanner();
 		~Scanner();
 
-		void scan();
-		void init(std::istream* in, std::queue<Token>* out);
+		void scan(std::queue<Token>* output);
+		void init(std::istream* in);
 
 	private:
 		void fillBuffer(int pos);
@@ -33,7 +33,6 @@ class Scanner
 		Token getNextToken();
 
 		std::istream* input_stream;
-		std::queue<Token>* output;
 
 		char double_buffer[2 * BUFFER_LENGTH];
 		int lexeme_start;

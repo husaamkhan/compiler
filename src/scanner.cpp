@@ -1,16 +1,15 @@
 #include "scanner.h"
 #include <string>
 
-Scanner::Scanner() : input_stream(nullptr), output(nullptr)
+Scanner::Scanner() : input_stream(nullptr)
 {}
 
 Scanner::~Scanner()
 {}
 
-void Scanner::init(std::istream* in, std::queue<Token>* out)
+void Scanner::init(std::istream* in)
 {
 	input_stream = in;
-	output = out;
 	stack = std::stack<CategoryStatePair>();
 	stack.push(CategoryStatePair { START, NONE });
 
@@ -52,7 +51,7 @@ void Scanner::rollBack()
 		throw ScannerError{ message, "rollBack()" };
 	}
 
-	cur_pos = (cur_pos - 1)	% 2*BUFFER_LENGTH;
+	cur_pos = (cur_pos - 1)	% (2*BUFFER_LENGTH);
 }
 
 CategoryStatePair Scanner::handleHash()
@@ -69,7 +68,7 @@ CategoryStatePair Scanner::handleHash()
 	}
 }
 
-void Scanner::scan()
+void Scanner::scan(std::queue<Token>* output)
 {
 	input_stream->read(double_buffer, BUFFER_LENGTH);
 	fillBuffer(0);
