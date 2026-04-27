@@ -1,5 +1,7 @@
+#include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <mutex>
 #include <sstream>
 #include <string.h>
 #include "scanner.h"
@@ -9,22 +11,8 @@ using namespace std;
 void printUsage()
 {
 	cerr	<< "Usage:\n"
-		<< "./scanner_cli              -    Enter text interactively\n"
-		<< "./scanner_cli -f <file>    -    Read input from file\n";
-}
-
-string readFromShell()
-{
-	string input;
-	
-	// Read user's input in shell until user types Ctrl+D
-	string str = "";
-	while(std::getline(cin, str))
-	{
-		input += str + "\n";
-	}
-
-	return input;
+		<< "./scanner_cli              	-    Enter text interactively\n"
+		<< "./scanner_cli <file>    	-    Read input from file\n";
 }
 
 string readFromFile(string path)
@@ -46,29 +34,37 @@ string readFromFile(string path)
 
 int main(int argc, char** argv)
 {
-	if (argc > 3)
+	if (argc > 2)
 	{
 		printUsage();
 	}
 
-	string input;
-	if (argc == 1) // If user only enters ./scanner_cli, read their input from shell until they enter Ctrl+D
-	{
-		input = readFromShell();
-	}
-	else if (argc == 3 && strncmp(argv[1], "-f", 2) == 0) // User must enter ./scanner_cli -f <file> to pass input from file
-	{
-		input = readFromFile(argv[2]);
-	}
-	else // Any other input is invalid, print usage instructions
-	{
-		printUsage();
-	}
-
-	istringstream input_stream(input);
 	queue<Token> token_queue;
 	Scanner* scanner = new Scanner();
-	scanner->init(input_stream);
-	scanner->scan();
+
+	ifstream file;
+	if (argc == 1)
+	{
+		scanner->init(&cin, &token_queue);
+	}
+	else
+	{
+		file = ifstream(argv[1]);
+		if (!file.is_open())
+		{
+			cerr<< "Could not open file: " << argv[2] << endl;
+		}
+
+		scanner->init(&file, &token_queue);
+	}
+
+	try
+	{
+		scanner->scan();
+	}
+	catch (exception& e)
+	{
+		cerr << e.what() << endl;
+	}
 }
 
