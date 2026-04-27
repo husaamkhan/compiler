@@ -1,4 +1,6 @@
+#include "defs.h"
 #include <iostream>
+#include <queue>
 #include <stack>
 
 #ifndef SCANNER
@@ -6,29 +8,12 @@
 
 #define BUFFER_LENGTH 4096
 
-enum State { ERROR, ACCEPTING, NON_ACCEPTING };
-enum Token
-{
-	INCOMPLETE,
-	IDENTIFIER,
-	BOOLEAN,
-	NUMBER,
-	CHARACTER,
-	STRING,
-	L_PARENTHESIS,
-	R_PARENTHESIS,
-	VECTOR_START,
-	QUOTE,
-	QUASIQUOTE,
-	UNQUOTE,
-	UNQUOTE_SPLICE,
-	DOT
-};
+enum State { ERROR, START, ACCEPTING, NON_ACCEPTING };
 
-struct TokenStatePair
+struct CategoryStatePair
 {
 	State state = ERROR;
-	Token token = INCOMPLETE;
+	Category category = NONE;
 };
 
 class Scanner
@@ -38,20 +23,23 @@ class Scanner
 		~Scanner();
 
 		void scan();
-		void init(std::istream* stream);
+		void init(std::istream* in, std::queue<Token>* out);
 
 	private:
 		void fillBuffer(int pos);
 		char nextChar();
 		void rollBack();
+		CategoryStatePair handleHash();
+		Token getNextToken();
 
 		std::istream* input_stream;
+		std::queue<Token>* output;
 
 		char double_buffer[2 * BUFFER_LENGTH];
+		int lexeme_start;
 		int cur_pos;
 		int fence; // Used to prevent rollback into incorrect buffer
 
-		std::stack<TokenStatePair> stack;
-		std::string lexeme;
+		std::stack<CategoryStatePair> stack;
 };
 #endif

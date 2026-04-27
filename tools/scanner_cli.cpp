@@ -66,7 +66,9 @@ int main(int argc, char** argv)
 	}
 
 	istringstream input_stream(input);
-	Scanner scanner = new Scanner();
-	scanner.scan(input_stream);
+	queue<Token> token_queue;
+	Scanner* scanner = new Scanner();
+	scanner->init(input_stream);
+	scanner->scan();
 }
 
