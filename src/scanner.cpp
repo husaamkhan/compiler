@@ -1,5 +1,4 @@
 #include "scanner.h"
-#include <stdexcept>
 #include <string>
 
 Scanner::Scanner() : input_stream(nullptr), output(nullptr)
@@ -31,13 +30,13 @@ char Scanner::nextChar()
 	
 	if (c != EOF) // EOF results in ERROR state, which ends the scanning loop and triggers rollback
 	{
-		cur_pos = (cur_pos + 1) % 2*BUFFER_LENGTH;
+		cur_pos = (cur_pos + 1) % (2*BUFFER_LENGTH);
 
 		// Fills next buffer if current position has crossed into it and updates fence
 		if ((cur_pos % BUFFER_LENGTH) == 0)
 		{
 			fillBuffer(cur_pos);
-			fence = (cur_pos + BUFFER_LENGTH) % 2*BUFFER_LENGTH;
+			fence = (cur_pos + BUFFER_LENGTH) % (2*BUFFER_LENGTH);
 		}
 	}
 
@@ -49,8 +48,7 @@ void Scanner::rollBack()
 	if (cur_pos == fence)
 	{
 		std::string message = 	std::string("Error during rollback! Attempted to rollback into invalid context! Fence: ") +
-					std::to_string(fence) + "\n" +
-					"Current position: " + std::to_string(cur_pos);
+					std::to_string(fence) + " " + "Current position: " + std::to_string(cur_pos);
 		throw ScannerError{ message, "rollBack()" };
 	}
 
@@ -59,8 +57,8 @@ void Scanner::rollBack()
 
 CategoryStatePair Scanner::handleHash()
 {
-	char cur = nextChar();
-	switch (cur)
+	char ch = nextChar();
+	switch (ch)
 	{
 		case 't':
 			return CategoryStatePair {ACCEPTING, BOOLEAN};
@@ -140,8 +138,7 @@ Token Scanner::getNextToken()
 
 	if (state != ACCEPTING)
 	{
-		std::string message = 	std::string("An error occured during scanning! Scanner roll back couldn't reach an accepting state for lexeme: .") +
-					lexeme;
+		std::string message = std::string("An error occured during scanning! Scanner roll back couldn't reach an accepting state for lexeme: ") + lexeme;
 		throw ScannerError{ message, "getNextToken()" };
 	}
 
