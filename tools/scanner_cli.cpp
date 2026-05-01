@@ -11,7 +11,7 @@ void printUsage()
 		<< "./scanner_cli <file>    	-    Read input from file\n";
 }
 
-void printTokens(queue<Token> tokens)
+void printTokens(queue<Token> &tokens)
 {
 	while(!tokens.empty())
 	{
@@ -21,12 +21,18 @@ void printTokens(queue<Token> tokens)
 			case BOOLEAN:
 				category = "BOOLEAN";
 				break;
+
+			case END_OF_FILE:
+				category = "END_OF_FILE";
+				break;
+
 			default:
 				category = "NONE";
 				break;
 		}
 
-		cout << string("[") + tokens.front().lexeme + ": " + category << endl;
+		cout << string("[") + tokens.front().lexeme + ": " + category + "]"<< endl;
+		tokens.pop();
 	}
 }
 
@@ -63,7 +69,7 @@ int main(int argc, char** argv)
 	}
 	catch (exception& e)
 	{
-		cerr << e.what() << endl;
+		cerr << string("Error: ") + e.what() << endl;
 	}
 }
 

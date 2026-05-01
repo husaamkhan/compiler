@@ -35,6 +35,8 @@ class Scanner
 		std::istream* input_stream;
 
 		char double_buffer[2 * BUFFER_LENGTH];
+		int buffer_size;
+
 		int lexeme_start;
 		int cur_pos;
 		int fence; // Used to prevent rollback into incorrect buffer

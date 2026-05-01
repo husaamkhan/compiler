@@ -17,6 +17,7 @@ enum Category
 	UNQUOTE,
 	UNQUOTE_SPLICE,
 	DOT,
+	NEWLINE,
 	END_OF_FILE
 };
 
