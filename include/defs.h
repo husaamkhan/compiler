@@ -18,6 +18,7 @@ enum Category
 	UNQUOTE_SPLICE,
 	DOT,
 	NEWLINE,
+	WHITESPACE,
 	END_OF_FILE
 };
 

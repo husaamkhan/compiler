@@ -41,6 +41,10 @@ char Scanner::nextChar()
 			fence = (cur_pos + BUFFER_LENGTH) % (2*BUFFER_LENGTH);
 		}
 	}
+	else
+	{
+		return '\0';
+	}
 
 	return c;
 }
@@ -57,17 +61,33 @@ void Scanner::rollBack()
 	cur_pos = (cur_pos - 1)	% (2*BUFFER_LENGTH);
 }
 
-CategoryStatePair Scanner::handleHash()
+void Scanner::handleHash()
 {
 	char ch = nextChar();
+
 	switch (ch)
 	{
+		case '\0':
+			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+
+		case '\n':
+			stack.push(CategoryStatePair { ERROR, WHITESPACE });
+
+		case ' ':
+			stack.push(CategoryStatePair { ERROR, WHITESPACE });
+
 		case 't':
-			return CategoryStatePair {ACCEPTING, BOOLEAN};
+			stack = std::stack<CategoryStatePair>();
+			stack.push(CategoryStatePair { START, NONE });
+			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+
 		case 'f':
-			return CategoryStatePair {ACCEPTING, BOOLEAN};
+			stack = std::stack<CategoryStatePair>();
+			stack.push(CategoryStatePair { START, NONE });
+			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+			
 		default: // No match causes error state
-			return CategoryStatePair {ERROR, NONE};
+			stack.push(CategoryStatePair {ERROR, NONE});
 	}
 }
 
@@ -83,12 +103,9 @@ void Scanner::scan(std::queue<Token>* output)
 
 		switch (token.category)
 		{
-			case NEWLINE:
-				continue;
-
 			case NONE:
 			{
-				std::string message = std::string("An error occured during scanning! Couldn't get token for lexeme:") + token.lexeme;
+				std::string message = std::string("An error occured during scanning! Scanner couldn't recognize the following lexeme:") + token.lexeme;
 				throw ScannerError{ message, "scan()" };
 			}
 
@@ -102,48 +119,27 @@ Token Scanner::getNextToken()
 {
 	State state 	= NON_ACCEPTING;
 	lexeme_start 	= cur_pos;
-	bool eof 	= false;
 
-	// Scan loop finds the longest possible match for a token
-	while (state != ERROR)
+	char ch = nextChar();
+	CategoryStatePair result;
+
+	switch (ch)
 	{
-		if (cur_pos+1 > (fence + buffer_size))
-		{
-			state = ERROR;
-			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
-			
-			eof = true;
-			continue;
-		}
+		case '\0':
+			return Token { END_OF_FILE, "" };
 
-		char ch = nextChar();
+		case ' ':
+			return Token { WHITESPACE, "' '" };
 
-		CategoryStatePair result;
+		case '\n':
+			return Token { WHITESPACE, "\\n" };
 
-		switch (ch)
-		{
-			case '\n':
-				result = CategoryStatePair { NON_ACCEPTING, NEWLINE };
-				break;	
+		case '#':
+			handleHash();
+			break;
 
-			case '#':
-				result = handleHash();
-				break;
-
-			default:
-				state = ERROR;
-				break;
-		}
-
-		state = result.state;
-
-		if (state == ACCEPTING)
-		{
-			stack = std::stack<CategoryStatePair>();
-			stack.push(CategoryStatePair { START, NONE });
-		}
-
-		stack.push(CategoryStatePair { state, result.category });
+		default:
+			return Token { NONE, "" };
 	}
 
 	Category category = NONE;
@@ -166,15 +162,10 @@ Token Scanner::getNextToken()
 
 	cur_pos++;
 
-	if (state != ACCEPTING && !eof)
+	if (state != ACCEPTING)
 	{
 		std::string message = std::string("An error occured during scanning! Scanner roll back couldn't reach an accepting state for lexeme: ") + lexeme;
 		throw ScannerError{ message, "getNextToken()" };
-	}
-
-	if (eof && state != ACCEPTING)
-	{
-		return Token { END_OF_FILE, "" };
 	}
 
 	return Token { category, lexeme };

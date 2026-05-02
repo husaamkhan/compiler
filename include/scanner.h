@@ -29,7 +29,7 @@ class Scanner
 		void fillBuffer(int pos);
 		char nextChar();
 		void rollBack();
-		CategoryStatePair handleHash();
+		void handleHash();
 		Token getNextToken();
 
 		std::istream* input_stream;
