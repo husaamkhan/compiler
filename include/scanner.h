@@ -33,6 +33,7 @@ class Scanner
 
 		void handleHash();
 		void handleCharacter();
+		void handleIdentifier(char ch);
 
 		std::istream* input_stream;
 

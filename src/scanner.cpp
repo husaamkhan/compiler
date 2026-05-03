@@ -1,4 +1,5 @@
 #include "scanner.h"
+#include <cctype>
 #include <string>
 
 Scanner::Scanner() : input_stream(nullptr)
@@ -107,16 +108,14 @@ void Scanner::handleHash()
 void Scanner::handleCharacter()
 {
 	char ch = nextChar();
-	
-	switch (ch)
+
+	if (ch == '\0')
 	{
-		case '\0':
-			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
-			break;
-		
-		default:
-			stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
-			break;
+		stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+	}
+	else
+	{
+		stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
 	}
 
 	// Check if character name was provided
@@ -160,6 +159,38 @@ void Scanner::handleCharacter()
 
 		state = stack.top().state;
 		next++;
+	}
+}
+
+void Scanner::handleIdentifier(char ch)
+{
+	if (std::isdigit(ch))
+	{
+		stack.push(CategoryStatePair { ERROR, NONE });
+		return;
+	}
+	else
+	{
+		stack.push(CategoryStatePair { ACCEPTING, IDENTIFIER });	
+	}
+
+	State state = NON_ACCEPTING;
+
+	while (state != ERROR)
+	{
+		char ch = nextChar();
+
+		if (ch == ' ' || ch == '\n' || ch == '\0' || ch == '#' || ch == '|' || ch == '`' || ch == '\\' ||
+				ch == '\'' || ch == ';' || ch == ',' || ch == '(' || ch == ')')
+		{
+			stack.push(CategoryStatePair { ERROR, NONE });
+		}
+		else
+		{
+			stack.push(CategoryStatePair {ACCEPTING, IDENTIFIER });
+		}
+
+		state = stack.top().state;
 	}
 }
 
@@ -211,7 +242,8 @@ Token Scanner::getNextToken()
 			break;
 
 		default:
-			return Token { NONE, "" };
+			handleIdentifier(ch);
+			break;
 	}
 
 	Category category = NONE;
