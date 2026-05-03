@@ -22,6 +22,10 @@ void printTokens(queue<Token> &tokens)
 				category = "BOOLEAN";
 				break;
 
+			case CHARACTER:
+				category = "CHARACTER";
+				break;
+
 			case WHITESPACE:
 				category = "WHITESPACE";
 				break;

@@ -67,27 +67,99 @@ void Scanner::handleHash()
 
 	switch (ch)
 	{
+		// Note to self for later, are these checks for \0 \n and ' ' really necessary?
+		// How is the default case not sufficient for these?
 		case '\0':
 			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+			break;
 
 		case '\n':
 			stack.push(CategoryStatePair { ERROR, WHITESPACE });
+			break;
 
 		case ' ':
 			stack.push(CategoryStatePair { ERROR, WHITESPACE });
+			break;
 
 		case 't':
 			stack = std::stack<CategoryStatePair>();
 			stack.push(CategoryStatePair { START, NONE });
 			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+			break;
 
 		case 'f':
 			stack = std::stack<CategoryStatePair>();
 			stack.push(CategoryStatePair { START, NONE });
 			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+			break;
+
+		case '\\':
+			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+			handleCharacter();
+			break;
 			
 		default: // No match causes error state
 			stack.push(CategoryStatePair {ERROR, NONE});
+			break;
+	}
+}
+
+void Scanner::handleCharacter()
+{
+	char ch = nextChar();
+	
+	switch (ch)
+	{
+		case '\0':
+			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+			break;
+		
+		default:
+			stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
+			break;
+	}
+
+	// Check if character name was provided
+	// Valid cases are 'space' and 'newline'
+	std::string valid_chars;
+	if (ch == 's')
+	{
+		valid_chars = "pace";
+	}
+	else if (ch == 'n')
+	{
+		valid_chars = "ewline";
+	}
+	else
+	{
+		return;	
+	}
+
+	State state = NON_ACCEPTING;
+	int next = 0;
+
+	while (state != ERROR && next < valid_chars.size())
+	{
+		ch = nextChar();
+		
+		if (ch == valid_chars.at(next))
+		{
+			if (next+1 == valid_chars.size())
+			{
+				stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
+			}
+			else
+			{
+				stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+			}
+		}
+		else
+		{
+			stack.push(CategoryStatePair { ERROR, NONE });
+		}
+
+		state = stack.top().state;
+		next++;
 	}
 }
 
@@ -117,8 +189,8 @@ void Scanner::scan(std::queue<Token>* output)
 
 Token Scanner::getNextToken()
 {
-	State state 	= NON_ACCEPTING;
-	lexeme_start 	= cur_pos;
+	State state = NON_ACCEPTING;
+	lexeme_start = cur_pos;
 
 	char ch = nextChar();
 	CategoryStatePair result;
@@ -158,9 +230,7 @@ Token Scanner::getNextToken()
 		}
 	}
 
-	std::string lexeme(double_buffer + lexeme_start, cur_pos - lexeme_start + 1);
-
-	cur_pos++;
+	std::string lexeme(double_buffer + lexeme_start, cur_pos - lexeme_start);
 
 	if (state != ACCEPTING)
 	{

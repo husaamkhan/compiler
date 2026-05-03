@@ -29,8 +29,10 @@ class Scanner
 		void fillBuffer(int pos);
 		char nextChar();
 		void rollBack();
-		void handleHash();
 		Token getNextToken();
+
+		void handleHash();
+		void handleCharacter();
 
 		std::istream* input_stream;
 
