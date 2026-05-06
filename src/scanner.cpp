@@ -68,16 +68,6 @@ void Scanner::handleHash()
 
 	switch (ch)
 	{
-		// Note to self for later, are these checks for \0 \n and ' ' really necessary?
-		// How is the default case not sufficient for these?
-		case '\0':
-			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
-			break;
-
-		case '\n':
-			stack.push(CategoryStatePair { ERROR, WHITESPACE });
-			break;
-
 		case ' ':
 			stack.push(CategoryStatePair { ERROR, WHITESPACE });
 			break;
