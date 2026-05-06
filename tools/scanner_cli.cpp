@@ -30,6 +30,10 @@ void printTokens(queue<Token> &tokens)
 				category = "IDENTIFIER";
 				break;
 
+			case STRING:
+				category = "STRING";
+				break;
+
 			case WHITESPACE:
 				category = "WHITESPACE";
 				break;

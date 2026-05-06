@@ -34,6 +34,7 @@ class Scanner
 		void handleHash();
 		void handleCharacter();
 		void handleIdentifier(char ch);
+		void handleString();
 
 		std::istream* input_stream;
 

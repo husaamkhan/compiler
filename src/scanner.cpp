@@ -184,6 +184,43 @@ void Scanner::handleIdentifier(char ch)
 	}
 }
 
+void Scanner::handleString()
+{
+	State state = NON_ACCEPTING;
+	while (state != ERROR)
+	{
+		char ch = nextChar();
+
+		// Prevents infinite loop from occuring if EOF is reached without terminating the string
+		if (ch == '\0')
+		{
+			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+			break;
+		}
+
+		/* Strings can have any character except for " and \, except for \" and \\ */
+		if (ch == '\\')
+		{
+			char next_ch = nextChar();
+			if (next_ch != '"' && next_ch != '\\')
+			{
+				stack.push(CategoryStatePair { ERROR, NONE });
+				continue;
+			}
+		}
+
+		if (ch == '"')
+		{
+			stack.push(CategoryStatePair { ACCEPTING, STRING });
+			break;
+		}
+		else
+		{
+			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });	
+		}
+	}
+}
+
 void Scanner::scan(std::queue<Token>* output)
 {
 	fillBuffer(0);
@@ -229,6 +266,10 @@ Token Scanner::getNextToken()
 
 		case '#':
 			handleHash();
+			break;
+
+		case '"':
+			handleString();
 			break;
 
 		default:
