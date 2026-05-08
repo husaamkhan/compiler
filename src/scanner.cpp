@@ -62,12 +62,14 @@ void Scanner::rollBack()
 	cur_pos = (cur_pos - 1)	% (2*BUFFER_LENGTH);
 }
 
+// Checks the next character after a # is read to handle booleans, characters, and numbers 
 void Scanner::handleHash()
 {
 	char ch = nextChar();
 
 	switch (ch)
 	{
+		// TODO: is this check necessary? I think default handles this
 		case ' ':
 			stack.push(CategoryStatePair { ERROR, WHITESPACE });
 			break;
@@ -87,6 +89,18 @@ void Scanner::handleHash()
 		case '\\':
 			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
 			handleCharacter();
+			break;
+
+		case 'i': // Handles exactness
+		case 'e':
+		case 'b': // Handles radices
+		case 'o':
+		case 'd':
+		case 'x':
+			// In the case where a # is read, The prefix of a number can start with either
+			// the exactness or the radix. The possible options for these are:
+			// Exactness: #i, #e | Radix: #b, #o, #d, #x
+			handleNumber();
 			break;
 			
 		default: // No match causes error state
@@ -221,6 +235,53 @@ void Scanner::handleString()
 	}
 }
 
+void Scanner::handleNumber()
+{
+	// This function is called when expecting the prefix, which happens when either the radix
+	// or the exactness has been recognized.
+	
+	char ch = nextChar();
+
+	// The remaining portion of the prefix can be provided, or left empty
+	if (ch == '#')
+	{
+		ch = nextChar();
+		if (ch == 'i' || ch == 'e' || ch == 'b' || ch == 'o' || ch == 'd' || ch == 'x')
+		{
+			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+		}
+		else
+		{
+			stack.push(CategoryStatePair { ERROR, NONE });	
+			return;
+		}
+	}
+
+	// The remaining portion of the number is the complex portion
+	ch = nextChar();
+
+	// Complex portion can start with either signed or unsigned real number, or +/- i
+	if (ch == '+' || ch == '-')
+	{
+		stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+	}
+
+	ch = nextChar();
+	if (ch == 'i')
+	{
+		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+		return; // R5RS allows the imaginary portion to only be at the end of the number
+	}
+
+	while (std::isdigit(ch))
+	{
+		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+		ch = nextChar();
+	}
+
+	if (ch != 
+}
+
 void Scanner::scan(std::queue<Token>* output)
 {
 	fillBuffer(0);
@@ -236,6 +297,9 @@ void Scanner::scan(std::queue<Token>* output)
 			case NONE:
 			{
 				std::string message = std::string("An error occured during scanning! Scanner couldn't recognize the following lexeme:") + token.lexeme;
+				// TODO: we need to instead have a way where we replace this with a collection
+				// of errors that have occured. This will allow the compiler to scan the whole
+				// document so that the user can see all of the errors that occured.
 				throw ScannerError{ message, "scan()" };
 			}
 
@@ -298,6 +362,10 @@ Token Scanner::getNextToken()
 	if (state != ACCEPTING)
 	{
 		std::string message = std::string("An error occured during scanning! Scanner roll back couldn't reach an accepting state for lexeme: ") + lexeme;
+
+		// TODO: we need to instead have a way where we replace this with a collection
+		// of errors that have occured. This will allow the compiler to scan the whole
+		// document so that the user can see all of the errors that occured.
 		throw ScannerError{ message, "getNextToken()" };
 	}
 
