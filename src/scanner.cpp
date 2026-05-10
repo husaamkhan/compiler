@@ -257,29 +257,56 @@ void Scanner::handleNumber()
 		}
 	}
 
-	// The remaining portion of the number is the complex portion
+	// The remaining portion of the number is the complex portion, which can be any of the following:
+	// <real R> | <real R> @ <real R> | <real R> + <ureal R> i | <real R> - <ureal R> i |
+	// <real R> + i | <real R> - i | + <ureal R> i | - <ureal R> i | + i | - i
 	ch = nextChar();
 
 	// Complex portion can start with either signed or unsigned real number, or +/- i
 	if (ch == '+' || ch == '-')
 	{
 		stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+
+		ch = nextChar();
+		if (ch == 'i')
+		{
+			stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+			return; // R5RS allows the imaginary portion to only be at the end of the number
+		}
 	}
 
-	ch = nextChar();
-	if (ch == 'i')
-	{
-		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
-		return; // R5RS allows the imaginary portion to only be at the end of the number
-	}
-
+	// TODO: What if this is a decimal number?
+	
+	// <real R> is defined as <sign> <ureal R>
+	// <ureal R> -> <uinteger R> | <uinteger R> / <uinteger R> | <decimal R>
+	// Scan for <ureal R>
 	while (std::isdigit(ch))
 	{
 		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
 		ch = nextChar();
 	}
 
-	if (ch != 
+	while (ch == '#')
+	{
+		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+		ch = nextChar();
+	}
+
+	if (ch == '/')
+	{
+		stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+		ch = nextChar();
+		while (std::isdigit(ch))
+		{
+			stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+			ch = nextChar();
+		}
+	}
+
+	// TODO: complete <ureal R> recognition, only <uinteger R> and <uinteger R> / <uinteger R> have
+	// been implemented, still have to add <decimal R>
+	
+	// TODO: Add check for a +/- i at the end of the number
 }
 
 void Scanner::scan(std::queue<Token>* output)
