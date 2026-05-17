@@ -20,31 +20,30 @@ void Scanner::init(std::istream *in)
 	lexeme_start 	= 0;
 }
 
-// TODO: Update to read from full file contents rather than double buffer
 char Scanner::nextChar()
 {
-	char c = double_buffer[cur_pos];
-	
-	if (!(cur_pos > (fence + buffer_size)))
-	{
-		cur_pos = (cur_pos + 1) % (2*BUFFER_LENGTH);
-
-		// Fills next buffer if current position has crossed into it and updates fence
-		if ((cur_pos % BUFFER_LENGTH) == 0)
-		{
-			fillBuffer(cur_pos);
-			fence = (cur_pos + BUFFER_LENGTH) % (2*BUFFER_LENGTH);
-		}
-	}
-	else
+	cur_pos++;
+	if (cur_pos >= buffer.size())
 	{
 		return '\0';
 	}
 
-	return c;
+	return buffer[cur_pos];
 }
 
 // Checks the next character after a # is read to handle booleans, characters, and numbers 
+std::string Scanner::lookAhead(int n)
+{
+	if ((cur_pos + n) > buffer.size())
+	{
+		n = buffer.size() - cur_pos;
+	}
+	
+	return std::string(buffer.begin() + cur_pos, buffer.begin() + cur_pos + n);
+}
+
+// A # can lead to multiple categories. This function checks the next character after a #
+// is read to handle booleans, characters, and numbers
 void Scanner::handleHash()
 {
 	char ch = nextChar();
@@ -101,6 +100,11 @@ void Scanner::handleCharacter()
 		category = CHARACTER;
 	}
 
+	/*
+	 * TODO: Left over from when the scanner was using a double buffer
+	 * We can instead look ahead n characters and see if the string that is formed matches
+	 * "space" or "newline"
+	 */
 	// Check if character name was provided
 	// Valid cases are 'space' and 'newline'
 	std::string valid_chars;
@@ -190,16 +194,16 @@ void Scanner::handleString()
 		}
 	}
 
+	// TODO: We break from the loop on \0, doesn't that mean that these lines
+	// can be reached with an unclosed string?
 	category = STRING;
 	last_accepting_pos = cur_pos;
 }
 
-// TODO: Complete, and update to remove state machine logic
+// This function is called when expecting the prefix, which happens when either the radix
+// or the exactness has been recognized.
 void Scanner::handleNumber()
 {
-	// This function is called when expecting the prefix, which happens when either the radix
-	// or the exactness has been recognized.
-	
 	char ch = nextChar();
 
 	// The remaining portion of the prefix can be provided, or left empty
@@ -208,11 +212,6 @@ void Scanner::handleNumber()
 		ch = nextChar();
 		if (ch == 'i' || ch == 'e' || ch == 'b' || ch == 'o' || ch == 'd' || ch == 'x')
 		{
-			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
-		}
-		else
-		{
-			stack.push(CategoryStatePair { ERROR, NONE });	
 			return;
 		}
 	}

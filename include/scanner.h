@@ -5,8 +5,6 @@
 #ifndef SCANNER
 #define SCANNER
 
-#define BUFFER_LENGTH 4096
-
 class Scanner
 { 
 	public:
@@ -15,6 +13,7 @@ class Scanner
 
 	private:
 		char nextChar();
+		std::string lookAhead(int n);
 		void rollBack();
 		Token getNextToken();
 
