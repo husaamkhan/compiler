@@ -2,31 +2,25 @@
 #include <cctype>
 #include <string>
 
-Scanner::Scanner() : input_stream(nullptr)
-{}
-
-Scanner::~Scanner()
-{}
-
-void Scanner::init(std::istream* in)
+void Scanner::init(std::istream *in)
 {
-	input_stream = in;
-	stack = std::stack<CategoryStatePair>();
-	stack.push(CategoryStatePair { START, NONE });
+	in->seekg(0, std::ios::end);
+	std::streamsize size = in->tellg();
+	in->seekg(0, std::ios::beg);
 
-	buffer_size 	= 0;
+	file_contents = std::vector<char>(static_cast<size_t>(size));
+
+	if (!in->read(this->file_contents.data(), size))
+	{
+		std::string message = std::string("Error: Couldn't read file");
+		throw ScannerError { message, "init()" };
+	}
+
 	cur_pos 	= 0;
-	fence 		= 0;
 	lexeme_start 	= 0;
 }
 
-void Scanner::fillBuffer(int pos)
-{
-	input_stream->read(double_buffer + pos, BUFFER_LENGTH);
-	buffer_size = input_stream->gcount();
-}
-
-
+// TODO: Update to read from full file contents rather than double buffer
 char Scanner::nextChar()
 {
 	char c = double_buffer[cur_pos];
@@ -50,18 +44,6 @@ char Scanner::nextChar()
 	return c;
 }
 
-void Scanner::rollBack()
-{
-	if (cur_pos == fence)
-	{
-		std::string message = 	std::string("Error during rollback! Attempted to rollback into invalid context! Fence: ") +
-					std::to_string(fence) + " " + "Current position: " + std::to_string(cur_pos);
-		throw ScannerError{ message, "rollBack()" };
-	}
-
-	cur_pos = (cur_pos - 1)	% (2*BUFFER_LENGTH);
-}
-
 // Checks the next character after a # is read to handle booleans, characters, and numbers 
 void Scanner::handleHash()
 {
@@ -69,42 +51,33 @@ void Scanner::handleHash()
 
 	switch (ch)
 	{
-		// TODO: is this check necessary? I think default handles this
-		case ' ':
-			stack.push(CategoryStatePair { ERROR, WHITESPACE });
-			break;
-
 		case 't':
-			stack = std::stack<CategoryStatePair>();
-			stack.push(CategoryStatePair { START, NONE });
-			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+			category = BOOLEAN;
+			last_accepting_pos = cur_pos;
 			break;
 
 		case 'f':
-			stack = std::stack<CategoryStatePair>();
-			stack.push(CategoryStatePair { START, NONE });
-			stack.push(CategoryStatePair { ACCEPTING, BOOLEAN });
+			category = BOOLEAN;
+			last_accepting_pos = cur_pos;
 			break;
 
 		case '\\':
-			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
 			handleCharacter();
 			break;
 
-		case 'i': // Handles exactness
-		case 'e':
-		case 'b': // Handles radices
-		case 'o':
-		case 'd':
-		case 'x':
+		case 'i': // -+ Handle exactness
+		case 'e': // -+
+		case 'b': // -+ Handle radices
+		case 'o': //  |
+		case 'd': //  |
+		case 'x': // -+
 			// In the case where a # is read, The prefix of a number can start with either
 			// the exactness or the radix. The possible options for these are:
 			// Exactness: #i, #e | Radix: #b, #o, #d, #x
 			handleNumber();
 			break;
 			
-		default: // No match causes error state
-			stack.push(CategoryStatePair {ERROR, NONE});
+		default:
 			break;
 	}
 }
@@ -115,11 +88,17 @@ void Scanner::handleCharacter()
 
 	if (ch == '\0')
 	{
-		stack.push(CategoryStatePair { ERROR, END_OF_FILE });
+		// TODO: Is it possible that the program gets stuck in a loop here? It could
+		// be possible that the scanner reaches this point, then jumps back to the
+		// last accepting position, only to scan all the way back to this point
+		// resulting in a loop
+
+		return; // Unexpected end of file
 	}
 	else
 	{
-		stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
+		last_accepting_pos = cur_pos;
+		category = CHARACTER;
 	}
 
 	// Check if character name was provided
@@ -138,103 +117,84 @@ void Scanner::handleCharacter()
 		return;	
 	}
 
-	State state = NON_ACCEPTING;
-	int next = 0;
-
-	while (state != ERROR && next < valid_chars.size())
+	bool valid_char = true;
+	for (int i = 0; i < valid_chars.size(); i++)
 	{
 		ch = nextChar();
-		
-		if (ch == valid_chars.at(next))
-		{
-			if (next+1 == valid_chars.size())
-			{
-				stack.push(CategoryStatePair { ACCEPTING, CHARACTER });
-			}
-			else
-			{
-				stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
-			}
-		}
-		else
-		{
-			stack.push(CategoryStatePair { ERROR, NONE });
-		}
 
-		state = stack.top().state;
-		next++;
+		if (ch != valid_chars.at(i))
+		{
+			valid_char = false;
+			break;
+		}
+	}
+
+	if (valid_char)
+	{
+		category = CHARACTER;
+		last_accepting_pos = cur_pos;
 	}
 }
 
 void Scanner::handleIdentifier(char ch)
 {
+	// Identifiers are not allowed to start with a digit
 	if (std::isdigit(ch))
 	{
-		stack.push(CategoryStatePair { ERROR, NONE });
-		return;
+		return; // TODO: Could this cause the program to be stuck in a loop?
 	}
 	else
 	{
-		stack.push(CategoryStatePair { ACCEPTING, IDENTIFIER });	
+		category = IDENTIFIER;
+		last_accepting_pos = cur_pos;
 	}
 
-	State state = NON_ACCEPTING;
-
-	while (state != ERROR)
+	while (true)
 	{
 		char ch = nextChar();
 
 		if (ch == ' ' || ch == '\n' || ch == '\0' || ch == '#' || ch == '|' || ch == '`' || ch == '\\' ||
 				ch == '\'' || ch == ';' || ch == ',' || ch == '(' || ch == ')')
 		{
-			stack.push(CategoryStatePair { ERROR, NONE });
+			break;
 		}
 		else
 		{
-			stack.push(CategoryStatePair {ACCEPTING, IDENTIFIER });
+			category = IDENTIFIER;
+			last_accepting_pos = cur_pos;
 		}
-
-		state = stack.top().state;
 	}
 }
 
 void Scanner::handleString()
 {
-	State state = NON_ACCEPTING;
-	while (state != ERROR)
+	char ch = nextChar();
+	while (ch != '"')
 	{
 		char ch = nextChar();
 
-		// Prevents infinite loop from occuring if EOF is reached without terminating the string
 		if (ch == '\0')
 		{
-			stack.push(CategoryStatePair { ERROR, END_OF_FILE });
 			break;
 		}
 
-		/* Strings can have any character except for " and \, except for \" and \\ */
+		// Strings can have any character except for " and \, unless they form \" or \\
+		// To handle this, the scanner needs to look ahead to see what the next character is
 		if (ch == '\\')
 		{
 			char next_ch = nextChar();
 			if (next_ch != '"' && next_ch != '\\')
 			{
-				stack.push(CategoryStatePair { ERROR, NONE });
-				continue;
+				return;
 			}
 		}
-
-		if (ch == '"')
-		{
-			stack.push(CategoryStatePair { ACCEPTING, STRING });
-			break;
-		}
-		else
-		{
-			stack.push(CategoryStatePair { NON_ACCEPTING, NONE });	
-		}
 	}
+
+	category = STRING;
+	last_accepting_pos = cur_pos;
 }
 
+// TODO: Complete, and update to remove state machine logic
 void Scanner::handleNumber()
 {
 	// This function is called when expecting the prefix, which happens when either the radix
@@ -311,8 +271,6 @@ void Scanner::handleNumber()
 
 void Scanner::scan(std::queue<Token>* output)
 {
-	fillBuffer(0);
-
 	Token token;
 
 	while (token.category != END_OF_FILE)
@@ -338,12 +296,10 @@ void Scanner::scan(std::queue<Token>* output)
 
 Token Scanner::getNextToken()
 {
-	State state = NON_ACCEPTING;
+	category = NONE;
 	lexeme_start = cur_pos;
 
 	char ch = nextChar();
-	CategoryStatePair result;
-
 	switch (ch)
 	{
 		case '\0':
@@ -368,27 +324,13 @@ Token Scanner::getNextToken()
 			break;
 	}
 
-	Category category = NONE;
+	// Jump back to last accepting token
+	cur_pos = last_accepting_pos;
+	std::string lexeme(file_contents.data() + lexeme_start, cur_pos - lexeme_start);
 
-	// Roll back to truncate lexeme and rewind cur_pos to the end of the previous identified token
-	while(state != ACCEPTING && state != START)
+	if (category == NONE)
 	{
-		state = stack.top().state;
-		category = stack.top().category;
-
-		stack.pop();
-
-		if (state != ACCEPTING && state != START)
-		{
-			rollBack();
-		}
-	}
-
-	std::string lexeme(double_buffer + lexeme_start, cur_pos - lexeme_start);
-
-	if (state != ACCEPTING)
-	{
-		std::string message = std::string("An error occured during scanning! Scanner roll back couldn't reach an accepting state for lexeme: ") + lexeme;
+		std::string message = std::string("Scanner couldn't categorize lexeme: ") + lexeme;
 
 		// TODO: we need to instead have a way where we replace this with a collection
 		// of errors that have occured. This will allow the compiler to scan the whole

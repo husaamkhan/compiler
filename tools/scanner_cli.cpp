@@ -59,12 +59,12 @@ int main(int argc, char** argv)
 		printUsage();
 	}
 
-	Scanner* scanner = new Scanner();
+	Scanner scanner = Scanner();
 
 	ifstream file;
 	if (argc == 1)
 	{
-		scanner->init(&cin);
+		scanner.init(&cin);
 	}
 	else
 	{
@@ -74,18 +74,18 @@ int main(int argc, char** argv)
 			cerr<< "Could not open file: " << argv[2] << endl;
 		}
 
-		scanner->init(&file);
+		scanner.init(&file);
 	}
-
-	try
-	{
-		queue<Token> token_queue;
-		scanner->scan(&token_queue);
-		printTokens(token_queue);
-	}
-	catch (exception& e)
-	{
-		cerr << string("Error: ") + e.what() << endl;
-	}
+	
+	 try
+	 {
+	 	queue<Token> token_queue;
+	 	scanner.scan(&token_queue);
+	 	printTokens(token_queue);
+	 }
+	 catch (exception& e)
+	 {
+	 	cerr << string("Error: ") + e.what() << endl;
+	 }
 }
 
