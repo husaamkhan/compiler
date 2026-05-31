@@ -201,72 +201,105 @@ void Scanner::handleString()
 }
 
 // This function is called when expecting the prefix, which happens when either the radix
-// or the exactness has been recognized.
+// or the exactness has been recognized
 void Scanner::handleNumber()
 {
 	char ch = nextChar();
 
-	// The remaining portion of the prefix can be provided, or left empty
+	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
 	if (ch == '#')
 	{
 		ch = nextChar();
-		if (ch == 'i' || ch == 'e' || ch == 'b' || ch == 'o' || ch == 'd' || ch == 'x')
-		{
+		if (ch != 'i' && ch != 'e' && ch != 'b' && ch != 'o' && ch != 'd' && ch != 'x')
 			return;
-		}
+		ch = nextChar();
 	}
 
-	// The remaining portion of the number is the complex portion, which can be any of the following:
-	// <real R> | <real R> @ <real R> | <real R> + <ureal R> i | <real R> - <ureal R> i |
-	// <real R> + i | <real R> - i | + <ureal R> i | - <ureal R> i | + i | - i
-	ch = nextChar();
+	// Scan <real R> = <sign> <ureal R> using a state machine
+	// States reflect what characters are valid after each symbol consumed
+	// Returns the next unprocessed character
+	enum ScanState { SIGN, DIGITS, HASHES, DOT, DOT_DIGITS, SLASH, SLASH_DIGITS, EXP_MARKER, EXP_SIGN, EXP_DIGITS };
 
-	// Complex portion can start with either signed or unsigned real number, or +/- i
-	if (ch == '+' || ch == '-')
+	auto scanReal = [&]() -> char
 	{
-		stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
+		ScanState state = SIGN;
 
-		ch = nextChar();
-		if (ch == 'i')
+		while (true)
 		{
-			stack.push(CategoryStatePair { ACCEPTING, NUMBER });
-			return; // R5RS allows the imaginary portion to only be at the end of the number
-		}
-	}
+			ScanState next_state = state;
 
-	// TODO: What if this is a decimal number?
-	
-	// <real R> is defined as <sign> <ureal R>
-	// <ureal R> -> <uinteger R> | <uinteger R> / <uinteger R> | <decimal R>
-	// Scan for <ureal R>
-	while (std::isdigit(ch))
-	{
-		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
-		ch = nextChar();
-	}
+			switch (state)
+			{
+				case SIGN:
+					if (ch == '+' || ch == '-')         { next_state = DIGITS; break; }
+					// fall through for unsigned real
+				case DIGITS:
+					if (std::isdigit(ch))               { next_state = DIGITS; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					if (ch == '#')                      { next_state = HASHES; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					if (ch == '.')                      { next_state = DOT; break; }
+					if (ch == '/')                      { next_state = SLASH; break; }
+					if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
+					                                    { next_state = EXP_MARKER; break; }
+					return ch;
 
-	while (ch == '#')
-	{
-		stack.push(CategoryStatePair { ACCEPTING, NUMBER });
-		ch = nextChar();
-	}
+				case HASHES:
+					if (ch == '#')                      { break; }
+					if (ch == '.')                      { next_state = DOT; break; }
+					if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
+					                                    { next_state = EXP_MARKER; break; }
+					return ch;
 
-	if (ch == '/')
-	{
-		stack.push(CategoryStatePair { NON_ACCEPTING, NONE });
-		ch = nextChar();
-		while (std::isdigit(ch))
-		{
-			stack.push(CategoryStatePair { ACCEPTING, NUMBER });
+				case DOT:
+				case DOT_DIGITS:
+					if (std::isdigit(ch))               { next_state = DOT_DIGITS; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					if (ch == '#')                      { next_state = HASHES; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
+					                                    { next_state = EXP_MARKER; break; }
+					return ch;
+
+				case SLASH:
+				case SLASH_DIGITS:
+					if (std::isdigit(ch))               { next_state = SLASH_DIGITS; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					if (ch == '#')                      { next_state = HASHES; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					return ch;
+
+				case EXP_MARKER:
+				case EXP_SIGN:
+					if (ch == '+' || ch == '-')         { next_state = EXP_SIGN; break; }
+					// fall through
+				case EXP_DIGITS:
+					if (std::isdigit(ch))               { next_state = EXP_DIGITS; category = NUMBER; last_accepting_pos = cur_pos; break; }
+					return ch;
+			}
+
+			state = next_state;
 			ch = nextChar();
 		}
+	};
+
+	ch = scanReal();
+
+	if (ch == '@')
+	{
+		// Polar complex: <real R> @ <real R>
+		ch = nextChar();
+		ch = scanReal();
+	}
+	else if (ch == '+' || ch == '-')
+	{
+		// Rectangular complex: <real R> +/- <ureal R> i  or  <real R> +/- i
+		ch = nextChar();
+		ch = scanReal();
 	}
 
-	// TODO: complete <ureal R> recognition, only <uinteger R> and <uinteger R> / <uinteger R> have
-	// been implemented, still have to add <decimal R>
-	
-	// TODO: Add check for a +/- i at the end of the number
+	// In R5RS, 'i' can only appear as the last character of a number
+	if (ch == 'i')
+	{
+		category = NUMBER;
+		last_accepting_pos = cur_pos;
+	}
 }
+
 
 void Scanner::scan(std::queue<Token>* output)
 {
