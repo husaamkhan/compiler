@@ -1,5 +1,6 @@
 #include "scanner.h"
 #include <cctype>
+#include <cstring>
 #include <string>
 
 void Scanner::init(std::istream *in)
@@ -10,7 +11,7 @@ void Scanner::init(std::istream *in)
 
 	file_contents = std::vector<char>(static_cast<size_t>(size));
 
-	if (!in->read(this->file_contents.data(), size))
+	if (!in->read(file_contents.data(), size))
 	{
 		std::string message = std::string("Error: Couldn't read file");
 		throw ScannerError { message, "init()" };
@@ -23,23 +24,23 @@ void Scanner::init(std::istream *in)
 char Scanner::nextChar()
 {
 	cur_pos++;
-	if (cur_pos >= buffer.size())
+	if (cur_pos >= file_contents.size())
 	{
 		return '\0';
 	}
 
-	return buffer[cur_pos];
+	return file_contents[cur_pos];
 }
 
 // Checks the next character after a # is read to handle booleans, characters, and numbers 
 std::string Scanner::lookAhead(int n)
 {
-	if ((cur_pos + n) > buffer.size())
+	if ((cur_pos + n) > file_contents.size())
 	{
-		n = buffer.size() - cur_pos;
+		n = file_contents.size() - cur_pos;
 	}
 	
-	return std::string(buffer.begin() + cur_pos, buffer.begin() + cur_pos + n);
+	return std::string(file_contents.begin() + cur_pos, file_contents.begin() + cur_pos + n);
 }
 
 // A # can lead to multiple categories. This function checks the next character after a #
@@ -83,61 +84,31 @@ void Scanner::handleHash()
 
 void Scanner::handleCharacter()
 {
-	char ch = nextChar();
-
-	if (ch == '\0')
+	// Look ahead to check for \\space or \\newline
+	if (lookAhead(5).compare("space") == 0)
 	{
-		// TODO: Is it possible that the program gets stuck in a loop here? It could
-		// be possible that the scanner reaches this point, then jumps back to the
-		// last accepting position, only to scan all the way back to this point
-		// resulting in a loop
-
-		return; // Unexpected end of file
+		cur_pos += 5;
+	}
+	else if (lookAhead(7).compare("newline") == 0)
+	{
+		cur_pos += 7;
 	}
 	else
 	{
-		last_accepting_pos = cur_pos;
-		category = CHARACTER;
-	}
-
-	/*
-	 * TODO: Left over from when the scanner was using a double buffer
-	 * We can instead look ahead n characters and see if the string that is formed matches
-	 * "space" or "newline"
-	 */
-	// Check if character name was provided
-	// Valid cases are 'space' and 'newline'
-	std::string valid_chars;
-	if (ch == 's')
-	{
-		valid_chars = "pace";
-	}
-	else if (ch == 'n')
-	{
-		valid_chars = "ewline";
-	}
-	else
-	{
-		return;	
-	}
-
-	bool valid_char = true;
-	for (int i = 0; i < valid_chars.size(); i++)
-	{
-		ch = nextChar();
-
-		if (ch != valid_chars.at(i))
+		char ch = nextChar();
+		if (ch == '\0')
 		{
-			valid_char = false;
-			break;
+			// TODO: Is it possible that the program gets stuck in a loop here? It could
+			// be possible that the scanner reaches this point, then jumps back to the
+			// last accepting position, only to scan all the way back to this point
+			// resulting in a loop
+
+			return; // Unexpected end of file
 		}
 	}
 
-	if (valid_char)
-	{
-		category = CHARACTER;
-		last_accepting_pos = cur_pos;
-	}
+	last_accepting_pos = cur_pos;
+	category = CHARACTER;
 }
 
 void Scanner::handleIdentifier(char ch)
