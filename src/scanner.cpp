@@ -17,19 +17,21 @@ void Scanner::init(std::istream *in)
 		throw ScannerError { message, "init()" };
 	}
 
-	cur_pos 	= 0;
-	lexeme_start 	= 0;
+	cur_pos = 0;
+	lexeme_start = 0;
 }
 
 char Scanner::nextChar()
 {
-	cur_pos++;
 	if (cur_pos >= file_contents.size())
 	{
 		return '\0';
 	}
 
-	return file_contents[cur_pos];
+	char ch = file_contents[cur_pos];
+	cur_pos++;
+
+	return ch;
 }
 
 // Checks the next character after a # is read to handle booleans, characters, and numbers 
@@ -165,8 +167,8 @@ void Scanner::handleString()
 		}
 	}
 
-	// TODO: We break from the loop on \0, doesn't that mean that these lines
-	// can be reached with an unclosed string?
+	// TODO: We break from the loop on \0, which means that the function will end up accepting an
+	// unclosed string
 	category = STRING;
 	last_accepting_pos = cur_pos;
 }
@@ -331,6 +333,7 @@ Token Scanner::getNextToken()
 	cur_pos = last_accepting_pos;
 	std::string lexeme(file_contents.data() + lexeme_start, cur_pos - lexeme_start);
 
+	// TODO: This is not working
 	if (category == NONE)
 	{
 		std::string message = std::string("Scanner couldn't categorize lexeme: ") + lexeme;
