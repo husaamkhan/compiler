@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include "scanner.h"
 
@@ -61,14 +62,20 @@ int main(int argc, char** argv)
 
 	Scanner scanner = Scanner();
 
-	ifstream file;
 	if (argc == 1)
 	{
-		scanner.init(&cin);
+		std::stringstream stream;
+		std::string s;
+		while (std::getline(std::cin, s))
+		{
+			stream << s << "\n";
+		}
+
+		scanner.init(&stream);
 	}
 	else
 	{
-		file = ifstream(argv[1]);
+		ifstream file = ifstream(argv[1]);
 		if (!file.is_open())
 		{
 			cerr<< "Could not open file: " << argv[2] << endl;
