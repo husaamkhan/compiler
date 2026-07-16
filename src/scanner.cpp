@@ -19,19 +19,24 @@ void Scanner::init(std::istream *in)
 
 	cur_pos = 0;
 	lexeme_start = 0;
+	cur_char = '\0';
 }
 
+// TODO: Current character was changed to a global variable, meaning it does not
+// need to be returned. Insteaad of returning '\0' which doesn't seem very reliable
+// to me, we can return true or false to track EOF
 char Scanner::nextChar()
 {
 	if (cur_pos >= file_contents.size())
 	{
-		return '\0';
+		cur_char = '\0';
+		return cur_char;
 	}
 
-	char ch = file_contents[cur_pos];
+	cur_char = file_contents[cur_pos];
 	cur_pos++;
 
-	return ch;
+	return cur_char;
 }
 
 // Checks the next character after a # is read to handle booleans, characters, and numbers 
@@ -49,9 +54,9 @@ std::string Scanner::lookAhead(int n)
 // is read to handle booleans, characters, and numbers
 void Scanner::handleHash()
 {
-	char ch = nextChar();
+	nextChar();
 
-	switch (ch)
+	switch (cur_char)
 	{
 		case 't':
 			category = BOOLEAN;
@@ -76,7 +81,7 @@ void Scanner::handleHash()
 			// In the case where a # is read, The prefix of a number can start with either
 			// the exactness or the radix. The possible options for these are:
 			// Exactness: #i, #e | Radix: #b, #o, #d, #x
-			handleNumber();
+			handleNumberPrefix();
 			break;
 			
 		default:
@@ -97,8 +102,8 @@ void Scanner::handleCharacter()
 	}
 	else
 	{
-		char ch = nextChar();
-		if (ch == '\0')
+		nextChar();
+		if (cur_char == '\0')
 		{
 			// TODO: Is it possible that the program gets stuck in a loop here? It could
 			// be possible that the scanner reaches this point, then jumps back to the
@@ -145,26 +150,26 @@ void Scanner::handleIdentifier(char ch)
 
 void Scanner::handleString()
 {
-	char ch = nextChar();
-	while (ch != '"')
+	nextChar();
+	while (cur_char != '"')
 	{
-		char ch = nextChar();
-
-		if (ch == '\0')
+		if (cur_char == '\0')
 		{
 			break;
 		}
 
 		// Strings can have any character except for " and \, unless they form \" or \\
 		// To handle this, the scanner needs to look ahead to see what the next character is
-		if (ch == '\\')
+		if (cur_char == '\\')
 		{
-			char next_ch = nextChar();
-			if (next_ch != '"' && next_ch != '\\')
+			nextChar();
+			if (cur_char != '"' && cur_char != '\\')
 			{
 				return;
 			}
 		}
+
+		nextChar();
 	}
 
 	// TODO: We break from the loop on \0, which means that the function will end up accepting an
@@ -173,26 +178,36 @@ void Scanner::handleString()
 	last_accepting_pos = cur_pos;
 }
 
-// This function is called when expecting the prefix, which happens when either the radix
+// This function is called when expecting the prefix for a number, which happens when either the radix
 // or the exactness has been recognized
+void Scanner::handleNumberPrefix()
+{
+	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
+	// Peek ahead to check without consuming
+	if (lookAhead(1)[0] == '#')
+	{
+		nextChar(); // consume '#'
+		nextChar(); // consume second prefix char (e/i/b/o/d/x)
+		if (cur_char != 'i' && cur_char != 'e' && cur_char != 'b' && cur_char != 'o' && cur_char != 'd' && cur_char != 'x')
+			return;
+	}
+
+	nextChar(); // advance to first number character
+	handleNumber();
+}
+
 void Scanner::handleNumber()
 {
-	char ch = nextChar();
-
-	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
-	if (ch == '#')
-	{
-		ch = nextChar();
-		if (ch != 'i' && ch != 'e' && ch != 'b' && ch != 'o' && ch != 'd' && ch != 'x')
-			return;
-		ch = nextChar();
-	}
+	nextChar();
+	char ch = cur_char;
 
 	// Scan <real R> = <sign> <ureal R> using a state machine
 	// States reflect what characters are valid after each symbol consumed
 	// Returns the next unprocessed character
 	enum ScanState { SIGN, DIGITS, HASHES, DOT, DOT_DIGITS, SLASH, SLASH_DIGITS, EXP_MARKER, EXP_SIGN, EXP_DIGITS };
 
+	// TODO: This is an absolutely terrible way to do this and the cyclomatic complexity of this function is way too high.
+	// Should probably find a better way to do this
 	auto scanReal = [&]() -> char
 	{
 		ScanState state = SIGN;
@@ -325,6 +340,12 @@ Token Scanner::getNextToken()
 			break;
 
 		default:
+			if (std::isdigit(ch))
+			{
+				handleNumber();
+				break;
+			}
+
 			handleIdentifier(ch);
 			break;
 	}

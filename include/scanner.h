@@ -21,6 +21,7 @@ class Scanner
 		void handleCharacter();
 		void handleIdentifier(char ch);
 		void handleString();
+		void handleNumberPrefix();
 		void handleNumber();
 
 		std::vector<char> file_contents;
@@ -29,5 +30,6 @@ class Scanner
 		int cur_pos;
 		int last_accepting_pos;
 		Category category;
+		char cur_char;
 };
 #endif

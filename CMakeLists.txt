@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 4.3)
 project(compiler)
 
 add_library(defs INTERFACE)
