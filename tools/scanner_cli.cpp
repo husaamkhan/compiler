@@ -43,6 +43,10 @@ void printTokens(queue<Token> &tokens)
 				category = "END_OF_FILE";
 				break;
 
+			case NUMBER:
+				category = "NUMBER";
+				break;
+
 			default:
 				category = "NONE";
 				break;
