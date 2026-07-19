@@ -340,6 +340,15 @@ Token Scanner::getNextToken()
 			break;
 
 		default:
+			if (cur_char == '+' || cur_char == '-')
+			{
+				if (std::isdigit(lookAhead(1)[0]))
+				{
+					handleNumber();
+					break;
+				}
+			}
+
 			if (std::isdigit(ch))
 			{
 				handleNumber();
