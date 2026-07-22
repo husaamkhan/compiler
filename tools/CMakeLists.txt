@@ -1,9 +1,9 @@
-project(scanner_cli)
+project(lexer_cli C)
 
 add_executable(${PROJECT_NAME}
-	scanner_cli.cpp)
+	lexer_cli.c)
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	defs
-	scanner)
+	lexer)

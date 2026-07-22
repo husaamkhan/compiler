@@ -1,7 +1,11 @@
-#include <stdexcept>
-#include <string>
+#ifndef DEFS_H
+#define DEFS_H
 
-enum Category
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+typedef enum
 {
 	NONE,
 	IDENTIFIER,
@@ -20,27 +24,72 @@ enum Category
 	NEWLINE,
 	WHITESPACE,
 	END_OF_FILE
-};
+} Category;
 
-struct Token
+typedef struct
 {
-	Category category = NONE;
-	std::string lexeme = "";
-};
+	Category category;
+	const char *lexeme;
+	size_t lexeme_len;
+} Token;
 
-
-struct ScannerError : public std::runtime_error
+typedef struct
 {
-	std::string function;
+	char *base;
+	size_t used;
+	size_t capacity;
+} Arena;
 
-	ScannerError(const std::string& message, const std::string& function)
-		: std::runtime_error(message), function(function) {}
+static Arena arena_create(size_t initial_capacity)
+{
+	Arena arena;
+	arena.base = malloc(initial_capacity);
+	arena.used = 0;
+	arena.capacity = initial_capacity;
+	return arena;
+}
 
-	const char* what() const noexcept override
+static inline void *arena_alloc(Arena *arena, size_t size)
+{
+	if (arena->used + size > arena->capacity)
 	{
-		static std::string msg;
-		msg = "ScannerError in function " + function + ": " + std::runtime_error::what();
-		return msg.c_str();
+		arena->capacity *= 2;
+		arena->base = realloc(arena->base, arena->capacity);
 	}
-};
 
+	void *ptr = arena->base + arena->used;
+	arena->used += size;
+	return ptr;
+}
+
+static void arena_destroy(Arena *arena)
+{
+	free(arena->base);
+	arena->base = NULL;
+	arena->used = 0;
+	arena->capacity = 0;
+}
+
+// Wraps arena_alloc to ensure tokens are always allocated with the correct size,
+// preventing callers from passing an incorrect size to arena_alloc directly.
+#define token_new(arena) ((Token *)arena_alloc(arena, sizeof(Token)))
+
+static char *read_file(FILE *in, size_t *size_out)
+{
+	fseek(in, 0, SEEK_END);
+	*size_out = ftell(in);
+	fseek(in, 0, SEEK_SET);
+
+	char *buffer = malloc(*size_out);
+
+	if (!fread(buffer, 1, *size_out, in))
+	{
+		fprintf(stderr, "Error: couldn't read file\n");
+		free(buffer);
+		return NULL;
+	}
+
+	return buffer;
+}
+
+#endif /* DEFS_H */
