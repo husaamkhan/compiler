@@ -10,3 +10,9 @@ add_library(lexer
 target_include_directories(lexer PUBLIC include)
 
 add_subdirectory(tools)
+
+if (TARGET_GROUP STREQUAL test)
+	include(CTest)
+	add_subdirectory(external)
+	add_subdirectory(test)
+endif()
