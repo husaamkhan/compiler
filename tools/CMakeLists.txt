@@ -7,3 +7,6 @@ target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	defs
 	lexer)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+	$<$<CONFIG:Debug>:DEBUG>)

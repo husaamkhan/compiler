@@ -6,49 +6,61 @@
 
 void lexer_init(Lexer *lexer, const char *file_contents, size_t file_size)
 {
+	LOG_DBG("Initializing lexer.");
+
 	lexer->file_contents = file_contents;
 	lexer->file_size = file_size;
+
+	lexer->pos.row = 1;
+	lexer->pos.col = 0;
+
 	lexer->cur_pos = 0;
-	lexer->lexeme_start = 0;
-	lexer->last_accepting_pos = 0;
 	lexer->cur_char = '\0';
+	lexer->last_accepting_pos = 0;
+
+	lexer->lexeme_start = 0;
 }
 
 // TODO: Current character was changed to a global variable, meaning it does not
 // need to be returned. Instead of returning '\0' which doesn't seem very reliable
-// to me, we can return true or false to track EOF
+// to me, we can return a status code to track EOF
 static char next_char(Lexer *lexer)
 {
 	if (lexer->cur_pos >= (int)lexer->file_size)
 	{
+		LOG_DBG("End of file detected at position %d", lexer->cur_pos);
 		lexer->cur_char = '\0';
 		return lexer->cur_char;
 	}
 
 	lexer->cur_char = lexer->file_contents[lexer->cur_pos];
 	lexer->cur_pos++;
-	return lexer->cur_char;
-}
 
-// Checks the next n characters without consuming them
-static const char *look_ahead(Lexer *lexer, int n)
-{
-	int remaining = (int)lexer->file_size - lexer->cur_pos;
-	if (n > remaining)
+	if (lexer->cur_char == '\n')
 	{
-		n = remaining;
+		lexer->pos.row++;
+		lexer->pos.col = 0;
 	}
-	return lexer->file_contents + lexer->cur_pos;
+	else
+	{
+		lexer->pos.col++;
+	}
+
+	return lexer->cur_char;
 }
 
 static void handle_character(Lexer *lexer)
 {
-	if (strncmp(look_ahead(lexer, 5), "space", 5) == 0)
+	int remaining = (int)lexer->file_size - lexer->cur_pos;
+
+	if (remaining >= 5 && strncmp(lexer->file_contents + lexer->cur_pos, "space", 5) == 0)
 	{
+		LEXER_LOG_DBG(lexer, "character token: 'space'");
 		lexer->cur_pos += 5;
 	}
-	else if (strncmp(look_ahead(lexer, 7), "newline", 7) == 0)
+	else if (remaining >= 7 && strncmp(lexer->file_contents + lexer->cur_pos, "newline", 7) == 0)
 	{
+		LEXER_LOG_DBG(lexer, "character token: 'newline'");
 		lexer->cur_pos += 7;
 	}
 	else
@@ -61,7 +73,8 @@ static void handle_character(Lexer *lexer)
 		// resulting in a loop
 		if (lexer->cur_char == '\0')
 		{
-			return; // Unexpected end of file
+			LEXER_LOG_ERR(lexer, "unexpected end of file");
+			return;
 		}
 	}
 
@@ -141,17 +154,20 @@ static void handle_number(Lexer *lexer)
 	// Scan <real R> = <sign_STATE> <ureal R> using a state machine
 	// States reflect what characters are valid after each symbol consumed
 	// Returns the next unprocessed character
+	LEXER_LOG_DBG(lexer, "scanning real number");
 	lexer->cur_char = scan_real(lexer, lexer->cur_char);
 
 	if (lexer->cur_char == '@')
 	{
 		// Polar complex: <real R> @ <real R>
+		LEXER_LOG_DBG(lexer, "scanning polar complex");
 		next_char(lexer);
 		lexer->cur_char = scan_real(lexer, lexer->cur_char);
 	}
 	else if (lexer->cur_char == '+' || lexer->cur_char == '-')
 	{
 		// Rectangular complex: <real R> +/- <ureal R> i  or  <real R> +/- i
+		LEXER_LOG_DBG(lexer, "scanning rectangular complex");
 		next_char(lexer);
 		lexer->cur_char = scan_real(lexer, lexer->cur_char);
 	}
@@ -168,13 +184,15 @@ static void handle_number_prefix(Lexer *lexer)
 {
 	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
 	// Peek ahead to check without consuming
-	if (look_ahead(lexer, 1)[0] == '#')
+	if (lexer->cur_pos < (int)lexer->file_size && lexer->file_contents[lexer->cur_pos] == '#')
 	{
+		LEXER_LOG_DBG(lexer, "second number prefix found");
 		next_char(lexer); // consume '#'
 		next_char(lexer); // consume second prefix char (e/i/b/o/d/x)
 		if (lexer->cur_char != 'i' && lexer->cur_char != 'e' && lexer->cur_char != 'b' &&
 			lexer->cur_char != 'o' && lexer->cur_char != 'd' && lexer->cur_char != 'x')
 		{
+			LEXER_LOG_ERR(lexer, "invalid number prefix");
 			return;
 		}
 	}
@@ -218,6 +236,7 @@ static void handle_hash(Lexer *lexer)
 			break;
 
 		default:
+			LEXER_LOG_ERR(lexer, "unrecognized character after '#': '%c'", lexer->cur_char);
 			break;
 	}
 }
@@ -227,7 +246,8 @@ static void handle_identifier(Lexer *lexer, char ch)
 	// Identifiers are not allowed to start with a digit
 	if (isdigit(ch))
 	{
-		return; // TODO: Could this cause the program to be stuck in a loop?
+		LEXER_LOG_ERR(lexer, "identifier cannot start with a digit");
+		return;
 	}
 
 	lexer->category = IDENTIFIER;
@@ -243,6 +263,7 @@ static void handle_identifier(Lexer *lexer, char ch)
 		}
 		else
 		{
+			LEXER_LOG_DBG(lexer, "valid identifier");
 			lexer->category = IDENTIFIER;
 			lexer->last_accepting_pos = lexer->cur_pos;
 		}
@@ -256,6 +277,7 @@ static void handle_string(Lexer *lexer)
 	{
 		if (lexer->cur_char == '\0')
 		{
+			LEXER_LOG_ERR(lexer, "unclosed string");
 			break;
 		}
 
@@ -266,6 +288,7 @@ static void handle_string(Lexer *lexer)
 			next_char(lexer);
 			if (lexer->cur_char != '"' && lexer->cur_char != '\\')
 			{
+				LEXER_LOG_ERR(lexer, "invalid escape sequence: '\\%c'", lexer->cur_char);
 				return;
 			}
 		}
@@ -316,7 +339,7 @@ static void get_next_token(Lexer *lexer, Token *token)
 		default:
 			if (lexer->cur_char == '+' || lexer->cur_char == '-')
 			{
-				if (isdigit(look_ahead(lexer, 1)[0]))
+				if (lexer->cur_pos < (int)lexer->file_size && isdigit(lexer->file_contents[lexer->cur_pos]))
 				{
 					handle_number(lexer);
 					break;
@@ -338,8 +361,7 @@ static void get_next_token(Lexer *lexer, Token *token)
 
 	if (lexer->category == NONE)
 	{
-		fprintf(stderr, "Error: unrecognized lexeme at position %d: '%.*s'\n",
-			lexer->lexeme_start, (int)lexeme_len, lexer->file_contents + lexer->lexeme_start);
+		LEXER_LOG_ERR(lexer, "unrecognized lexeme: '%.*s'", (int)lexeme_len, lexer->file_contents + lexer->lexeme_start);
 		lexer->cur_pos = lexer->lexeme_start + 1;
 		lexer->last_accepting_pos = lexer->cur_pos;
 		token->category = NONE;
@@ -351,6 +373,7 @@ static void get_next_token(Lexer *lexer, Token *token)
 	token->category = lexer->category;
 	token->lexeme = lexer->file_contents + lexer->lexeme_start;
 	token->lexeme_len = lexeme_len;
+	LEXER_LOG_DBG(lexer, "token produced: category=%d, lexeme='%.*s'", token->category, (int)token->lexeme_len, token->lexeme);
 }
 
 void lex(Lexer *lexer, Arena *arena, size_t *count_out)
@@ -373,6 +396,7 @@ void lex(Lexer *lexer, Arena *arena, size_t *count_out)
 
 		if (token->category == END_OF_FILE)
 		{
+			LOG_DBG("Lexing complete. Total tokens: %zu", *count_out);
 			break;
 		}
 	}

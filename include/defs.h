@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define LOG(fmt, ...)     fprintf(stdout, fmt "\n", ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...) fprintf(stderr, "[ERROR] " fmt "\n", ##__VA_ARGS__)
+
+#ifdef DEBUG
+    #define LOG_DBG(fmt, ...) fprintf(stdout, "[DEBUG] " fmt "\n", ##__VA_ARGS__)
+#else
+    #define LOG_DBG(fmt, ...) ((void)0)
+#endif
+
 typedef enum
 {
 	NONE,
