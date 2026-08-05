@@ -35,6 +35,11 @@ static void print_tokens(Token *tokens, size_t count)
 
 			case WHITESPACE:
 				category = "WHITESPACE";
+				if (tokens[i].lexeme[0] == '\n')
+				{
+					 tokens[i].lexeme = "\\n";
+					 tokens[i].lexeme_len = 2;
+				}
 				break;
 
 			case END_OF_FILE:
