@@ -3,6 +3,8 @@
 #include "defs.h"
 #include "lexer.h"
 
+#define LOG_TEST(fmt, ...) printf("[TEST] " fmt "\n", ##__VA_ARGS__);
+
 void setUp(void)
 {
 	LOG("--- Running test: %s ---", Unity.CurrentTestName);
@@ -72,8 +74,7 @@ void test_character_space(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#\\space", 2);
-
+	lexer_init(&lexer, "#\\space", 7);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -92,8 +93,7 @@ void test_character_newline(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#\\newline", 2);
-
+	lexer_init(&lexer, "#\\newline", 9);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -103,9 +103,40 @@ void test_character_newline(void)
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
 	TEST_ASSERT_EQUAL(strcmp("#\\newline", tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(7, tokens[0].lexeme_len);
+	TEST_ASSERT_EQUAL_INT(9, tokens[0].lexeme_len);
 
 	arena_destroy(&arena);
+}
+
+void test_characters(void)
+{
+	Arena arena = arena_create(sizeof(Token));
+	Lexer lexer;
+
+	// Iterate through all printable ascii characters
+	// Scheme does not support extended ascii characters
+	char test_char = '!';
+	for (int i = 33; i < 127; i++)
+	{
+		char s[4] = "#\\";
+		strncat(s, &test_char, 1);
+
+		LOG_TEST("Testing character '%s'", s);
+
+		lexer_init(&lexer, s, 1);
+
+		size_t token_count = 0;
+		lex(&lexer, &arena, &token_count);
+
+		Token *tokens = (Token *)arena.base;
+
+		TEST_ASSERT_EQUAL_size_t(2, token_count);
+		TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
+		TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+		TEST_ASSERT_EQUAL_INT(3, tokens[0].lexeme_len);
+
+		test_char++;
+	}
 }
 
 int main(void)
@@ -117,6 +148,7 @@ int main(void)
 	RUN_TEST(test_boolean_false);
 	RUN_TEST(test_character_space);
 	RUN_TEST(test_character_newline);
+	RUN_TEST(test_characters);
 
 	return UNITY_END();
 }

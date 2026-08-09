@@ -1,6 +1,7 @@
 #!/bin/bash
 
 compiler=gcc
+flags="-Wall -Wextra -Werror"
 compiler_definitions=""
 includes="-Iinclude"
 sources="src/lexer.c"
@@ -32,10 +33,12 @@ else
 fi
 
 # Build target
-$compiler $compiler_definitions $includes $sources -o $target
+$compiler $flags $compiler_definitions $includes $sources -o $target
 
 if [[ $? -eq 0 ]]; then
 	echo "Successfully built $target"
+else
+	exit
 fi
 
 if [[ $test -eq 1 ]]; then

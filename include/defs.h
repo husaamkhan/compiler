@@ -5,11 +5,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define LOG(fmt, ...)     fprintf(stdout, fmt "\n", ##__VA_ARGS__)
+#define LOG(fmt, ...)     printf(fmt "\n", ##__VA_ARGS__)
 #define LOG_ERR(fmt, ...) fprintf(stderr, "[ERROR] " fmt "\n", ##__VA_ARGS__)
 
 #ifdef DEBUG
-    #define LOG_DBG(fmt, ...) fprintf(stdout, "[DEBUG] " fmt "\n", ##__VA_ARGS__)
+    #define LOG_DBG(fmt, ...) printf("[DEBUG] " fmt "\n", ##__VA_ARGS__)
 #else
     #define LOG_DBG(fmt, ...) ((void)0)
 #endif
@@ -49,7 +49,7 @@ typedef struct
 	size_t capacity;
 } Arena;
 
-static Arena arena_create(size_t initial_capacity)
+static inline Arena arena_create(size_t initial_capacity)
 {
 	Arena arena;
 	arena.base = malloc(initial_capacity);
@@ -71,7 +71,7 @@ static inline void *arena_alloc(Arena *arena, size_t size)
 	return ptr;
 }
 
-static void arena_destroy(Arena *arena)
+static inline void arena_destroy(Arena *arena)
 {
 	free(arena->base);
 	arena->base = NULL;
@@ -83,7 +83,7 @@ static void arena_destroy(Arena *arena)
 // preventing callers from passing an incorrect size to arena_alloc directly.
 #define token_new(arena) ((Token *)arena_alloc(arena, sizeof(Token)))
 
-static char *read_file(FILE *in, size_t *size_out)
+static inline char *read_file(FILE *in, size_t *size_out)
 {
 	fseek(in, 0, SEEK_END);
 	*size_out = ftell(in);

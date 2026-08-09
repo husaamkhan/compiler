@@ -24,13 +24,12 @@ void lexer_init(Lexer *lexer, const char *file_contents, size_t file_size)
 // TODO: Current character was changed to a global variable, meaning it does not
 // need to be returned. Instead of returning '\0' which doesn't seem very reliable
 // to me, we can return a status code to track EOF
-static char next_char(Lexer *lexer)
+static void next_char(Lexer *lexer)
 {
 	if (lexer->cur_pos >= (int)lexer->file_size)
 	{
 		LOG_DBG("End of file detected at position %d", lexer->cur_pos);
 		lexer->cur_char = '\0';
-		return lexer->cur_char;
 	}
 
 	lexer->cur_char = lexer->file_contents[lexer->cur_pos];
@@ -45,8 +44,6 @@ static char next_char(Lexer *lexer)
 	{
 		lexer->pos.col++;
 	}
-
-	return lexer->cur_char;
 }
 
 static void handle_character(Lexer *lexer)
@@ -55,13 +52,15 @@ static void handle_character(Lexer *lexer)
 
 	if (remaining >= 5 && strncmp(lexer->file_contents + lexer->cur_pos, "space", 5) == 0)
 	{
-		LEXER_LOG_DBG(lexer, "character token: 'space'");
 		lexer->cur_pos += 5;
+		lexer->pos.col += 5;
+		LEXER_LOG_DBG(lexer, "character token: 'space'");
 	}
 	else if (remaining >= 7 && strncmp(lexer->file_contents + lexer->cur_pos, "newline", 7) == 0)
 	{
-		LEXER_LOG_DBG(lexer, "character token: 'newline'");
 		lexer->cur_pos += 7;
+		lexer->pos.col += 7;
+		LEXER_LOG_DBG(lexer, "character token: 'newline'");
 	}
 	else
 	{
@@ -84,8 +83,7 @@ static void handle_character(Lexer *lexer)
 
 static char scan_real(Lexer *lexer, char ch)
 {
-	// TODO: This is an absolutely terrible way to do this and the cyclomatic complexity of this function is way too high.
-	// Should probably find a better way to do this
+	// TODO: This is an absolutely terrible way to do this
 	typedef enum
 	{
 		SIGN_STATE, DIGITS_STATE, HASHES_STATE, DOT_STATE, DOT_DIGITS_STATE, SLASH_STATE, SLASH_DIGITS_STATE,
@@ -102,7 +100,7 @@ static char scan_real(Lexer *lexer, char ch)
 		{
 			case SIGN_STATE:
 				if (ch == '+' || ch == '-') { next_state = DIGITS_STATE;      break; }
-				// fall through for unsigned real
+				// fall through
 			case DIGITS_STATE:
 				if (isdigit(ch))            { next_state = DIGITS_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
 				if (ch == '#')              { next_state = HASHES_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
@@ -143,7 +141,7 @@ static char scan_real(Lexer *lexer, char ch)
 		}
 
 		state = next_state;
-		ch = next_char(lexer);
+		next_char(lexer);
 	}
 }
 
@@ -241,29 +239,24 @@ static void handle_hash(Lexer *lexer)
 	}
 }
 
-static void handle_identifier(Lexer *lexer, char ch)
+static void handle_identifier(Lexer *lexer)
 {
-	// Identifiers are not allowed to start with a digit
-	if (isdigit(ch))
-	{
-		LEXER_LOG_ERR(lexer, "identifier cannot start with a digit");
-		return;
-	}
+	LEXER_LOG_DBG(lexer, "Handling identifier starting with '%c'", lexer->cur_char);
 
 	lexer->category = IDENTIFIER;
 	lexer->last_accepting_pos = lexer->cur_pos;
 
 	while (1)
 	{
-		char c = next_char(lexer);
-		if (c == ' ' || c == '\n' || c == '\0' || c == '#' || c == '|' || c == '`' || c == '\\' ||
-			c == '\'' || c == ';' || c == ',' || c == '(' || c == ')')
+		next_char(lexer);
+		if (lexer->cur_char == ' ' || lexer->cur_char == '\n' || lexer->cur_char == '\0' || lexer->cur_char == '#' || lexer->cur_char == '|' || lexer->cur_char == '`' || lexer->cur_char == '\\' ||
+			lexer->cur_char == '\'' || lexer->cur_char == ';' || lexer->cur_char == ',' || lexer->cur_char == '(' || lexer->cur_char == ')')
 		{
 			break;
 		}
 		else
 		{
-			LEXER_LOG_DBG(lexer, "valid identifier");
+			LEXER_LOG_DBG(lexer, "valid identifier: %c", lexer->cur_char);
 			lexer->category = IDENTIFIER;
 			lexer->last_accepting_pos = lexer->cur_pos;
 		}
@@ -281,7 +274,7 @@ static void handle_string(Lexer *lexer)
 			break;
 		}
 
-		// Strings can have any character except for " and \, unless they form \" or \\
+		// Strings can have any character except for " and \, unless they form '\"' or '\\'
 		// To handle this, the lexer needs to look ahead to see what the next character is
 		if (lexer->cur_char == '\\')
 		{
@@ -296,8 +289,6 @@ static void handle_string(Lexer *lexer)
 		next_char(lexer);
 	}
 
-	// TODO: We break from the loop on \0, which means that the function will end up accepting an
-	// unclosed string
 	lexer->category = STRING;
 	lexer->last_accepting_pos = lexer->cur_pos;
 }
@@ -352,7 +343,7 @@ static void get_next_token(Lexer *lexer, Token *token)
 				break;
 			}
 
-			handle_identifier(lexer, lexer->cur_char);
+			handle_identifier(lexer);
 			break;
 	}
 
