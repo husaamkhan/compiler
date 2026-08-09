@@ -64,6 +64,12 @@ static inline void *arena_alloc(Arena *arena, size_t size)
 	{
 		arena->capacity *= 2;
 		arena->base = realloc(arena->base, arena->capacity);
+
+		if (arena->base == NULL)
+		{
+			LOG_ERR("Lexer arena realloc failed!");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	void *ptr = arena->base + arena->used;

@@ -7,7 +7,7 @@
 
 void setUp(void)
 {
-	LOG("--- Running test: %s ---", Unity.CurrentTestName);
+	LOG("\n--- Running test: %s ---", Unity.CurrentTestName);
 }
 
 void tearDown(void)
@@ -28,8 +28,6 @@ void test_empty_file(void)
 	TEST_ASSERT_EQUAL_INT(END_OF_FILE, tokens[0].category);
 	TEST_ASSERT_NULL(tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_size_t(0, tokens[0].lexeme_len);
-
-	arena_destroy(&arena);
 }
 
 void test_boolean_true(void)
@@ -47,10 +45,8 @@ void test_boolean_true(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(BOOLEAN, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
-
-	arena_destroy(&arena);
 }
 
 void test_boolean_false(void)
@@ -68,10 +64,8 @@ void test_boolean_false(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(BOOLEAN, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
-
-	arena_destroy(&arena);
 }
 
 void test_character_space(void)
@@ -89,10 +83,8 @@ void test_character_space(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
-
-	arena_destroy(&arena);
 }
 
 void test_character_newline(void)
@@ -110,10 +102,8 @@ void test_character_newline(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
-
-	arena_destroy(&arena);
 }
 
 void test_characters(void)
@@ -131,7 +121,7 @@ void test_characters(void)
 
 		LOG_TEST("Testing character '%s'", s);
 
-		lexer_init(&lexer, s, 1);
+		lexer_init(&lexer, s, 4);
 
 		size_t token_count = 0;
 		lex(&lexer, &arena, &token_count);
@@ -140,7 +130,7 @@ void test_characters(void)
 
 		TEST_ASSERT_EQUAL_size_t(2, token_count);
 		TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
-		TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+		TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 		TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 		test_char++;
@@ -152,8 +142,9 @@ void test_integers(void)
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
 
+	LOG_TEST("Testing integer: 1");
 	char *s = "1";
-	lexer_init(&lexer, s, 1);
+	lexer_init(&lexer, s, 2);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -162,46 +153,52 @@ void test_integers(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
+	LOG_TEST("Testing integer: 52");
 	s = "52";
-	lexer_init(&lexer, s, 2);
+	lexer_init(&lexer, s, 3);
 
 	token_count = 0;
+	arena.used = 0;
 	lex(&lexer, &arena, &token_count);
 
 	tokens = (Token *)arena.base;
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
+	LOG_TEST("Testing integer: 0015");
 	s = "0015";
-	lexer_init(&lexer, s, 4);
+	lexer_init(&lexer, s, 5);
 
 	token_count = 0;
+	arena.used = 0;
 	lex(&lexer, &arena, &token_count);
 
 	tokens = (Token *)arena.base;
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
+	LOG_TEST("Testing integer: 2345");
 	s = "2345";
-	lexer_init(&lexer, s, 4);
+	lexer_init(&lexer, s, 5);
 
 	token_count = 0;
+	arena.used = 0;
 	lex(&lexer, &arena, &token_count);
 
 	tokens = (Token *)arena.base;
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 }
 
@@ -210,8 +207,9 @@ void test_integers_with_hash(void)
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
 
+	LOG_TEST("Testing integer: 1##");
 	char *s = "1##";
-	lexer_init(&lexer, s, 3);
+	lexer_init(&lexer, s, 4);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -220,46 +218,53 @@ void test_integers_with_hash(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
+
+	LOG_TEST("Testing integer: 52#####");
 	s = "52#####";
+	lexer_init(&lexer, s, 8);
+
+	token_count = 0;
+	arena.used = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+	
+	LOG_TEST("Testing integer: 0015##");
+	s = "0015##";
 	lexer_init(&lexer, s, 7);
 
 	token_count = 0;
+	arena.used = 0;
 	lex(&lexer, &arena, &token_count);
 
 	tokens = (Token *)arena.base;
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
-	
-	s = "0015##";
-	lexer_init(&lexer, s, 2);
-
-	token_count = 0;
-	lex(&lexer, &arena, &token_count);
-
-	tokens = (Token *)arena.base;
-
-	TEST_ASSERT_EQUAL_size_t(2, token_count);
-	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
+	LOG_TEST("Testing integer: 2345#");
 	s = "2345#";
-	lexer_init(&lexer, s, 2);
+	lexer_init(&lexer, s, 6);
 
 	token_count = 0;
+	arena.used = 0;
 	lex(&lexer, &arena, &token_count);
 
 	tokens = (Token *)arena.base;
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_STRING(s, tokens[0].lexeme);
 	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 }
 

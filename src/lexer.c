@@ -79,105 +79,70 @@ static void handle_character(Lexer *lexer)
 	lexer->category = CHARACTER;
 }
 
-static char scan_real(Lexer *lexer, char ch)
+// TODO: This is not allowing any of the hexadecimal letters
+static void handle_digits(Lexer *lexer)
 {
-	// TODO: This is an absolutely terrible way to do this
-	typedef enum
+	LEXER_LOG_DBG(lexer, "lexing digits");
+
+	while (isdigit(lexer->cur_char)) 
 	{
-		SIGN_STATE, DIGITS_STATE, HASHES_STATE, DOT_STATE, DOT_DIGITS_STATE, SLASH_STATE, SLASH_DIGITS_STATE,
-		EXP_MARKER_STATE, EXP_SIGN_STATE, EXP_DIGITS_STATE
-	} ScanState;
-
-	ScanState state = SIGN_STATE;
-
-	while (1)
-	{
-		ScanState next_state = state;
-
-		switch (state)
-		{
-			case SIGN_STATE:
-				if (ch == '+' || ch == '-') { next_state = DIGITS_STATE;      break; }
-				// fall through
-			case DIGITS_STATE:
-				if (isdigit(ch))            { next_state = DIGITS_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '.')              { next_state = DOT_STATE;          break; }
-				if (ch == '/')              { next_state = SLASH_STATE;        break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case HASHES_STATE:
-				if (ch == '#')              { break; }
-				if (ch == '.')              { next_state = DOT_STATE;          break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case DOT_STATE:
-			case DOT_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = DOT_DIGITS_STATE;   lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case SLASH_STATE:
-			case SLASH_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = SLASH_DIGITS_STATE;  lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;        lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				return ch;
-
-			case EXP_MARKER_STATE:
-			case EXP_SIGN_STATE:
-				if (ch == '+' || ch == '-') { next_state = EXP_SIGN_STATE;     break; }
-				// fall through
-			case EXP_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = EXP_DIGITS_STATE;   lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				return ch;
-		}
-
-		state = next_state;
+		lexer->last_accepting_pos = lexer->cur_pos;
 		next_char(lexer);
+	}
+}
+
+static void handle_unspecified_digits(Lexer *lexer)
+{
+	LEXER_LOG_DBG(lexer, "lexing unspecified digits");
+
+	while (lexer->cur_char == '#')
+	{
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+	}
+}
+
+// TODO: This does not include any suffixes that are allowed in decimals
+static void handle_real(Lexer *lexer)
+{
+	LEXER_LOG_DBG(lexer, "lexing real number");
+
+	if (lexer->cur_char == '+' || lexer->cur_char == '-') next_char(lexer);
+	
+	handle_digits(lexer);
+
+	if (lexer->cur_char == '.')
+	{
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+
+		handle_digits(lexer);
+		handle_unspecified_digits(lexer);
+		return;
+	}
+
+	handle_unspecified_digits(lexer);
+
+	if (lexer->cur_char == '/')
+	{
+		next_char(lexer);
+		handle_digits(lexer);
+		handle_unspecified_digits(lexer);
 	}
 }
 
 static void handle_number(Lexer *lexer)
 {
-	next_char(lexer);
+	LEXER_LOG_DBG(lexer, "lexing number");
 
-	// Scan <real R> = <sign_STATE> <ureal R> using a state machine
-	// States reflect what characters are valid after each symbol consumed
-	// Returns the next unprocessed character
-	LEXER_LOG_DBG(lexer, "scanning real number");
-	lexer->cur_char = scan_real(lexer, lexer->cur_char);
-
-	if (lexer->cur_char == '@')
-	{
-		// Polar complex: <real R> @ <real R>
-		LEXER_LOG_DBG(lexer, "scanning polar complex");
-		next_char(lexer);
-		lexer->cur_char = scan_real(lexer, lexer->cur_char);
-	}
-	else if (lexer->cur_char == '+' || lexer->cur_char == '-')
-	{
-		// Rectangular complex: <real R> +/- <ureal R> i  or  <real R> +/- i
-		LEXER_LOG_DBG(lexer, "scanning rectangular complex");
-		next_char(lexer);
-		lexer->cur_char = scan_real(lexer, lexer->cur_char);
-	}
-
-	// In R5RS, 'i' can only appear as the last character of a number
-	if (lexer->cur_char == 'i')
-	{
-		lexer->category = NUMBER;
-		lexer->last_accepting_pos = lexer->cur_pos;
-	}
+	lexer->category = NUMBER;
+	handle_real(lexer);
 }
 
 static void handle_number_prefix(Lexer *lexer)
 {
+	lexer->category = NUMBER;
+
 	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
 	// Peek ahead to check without consuming
 	if (lexer->cur_pos < (int)lexer->file_size && lexer->file_contents[lexer->cur_pos] == '#')
@@ -335,10 +300,16 @@ static void get_next_token(Lexer *lexer, Token *token)
 				}
 			}
 
-			if (isdigit(lexer->cur_char))
+			else if (isdigit(lexer->cur_char))
 			{
 				handle_number(lexer);
 				break;
+			}
+
+			else if (lexer->cur_char == '.')
+			{
+				next_char(lexer);
+				handle_number(lexer);
 			}
 
 			handle_identifier(lexer);
