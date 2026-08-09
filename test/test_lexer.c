@@ -36,7 +36,9 @@ void test_boolean_true(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#t", 2);
+
+	char s[] = "#t";
+	lexer_init(&lexer, s, 2);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -45,8 +47,8 @@ void test_boolean_true(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(BOOLEAN, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp("#t", tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(2, tokens[0].lexeme_len);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 	arena_destroy(&arena);
 }
@@ -55,7 +57,9 @@ void test_boolean_false(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#f", 2);
+
+	char s[] = "#f";
+	lexer_init(&lexer, s, 2);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -64,8 +68,8 @@ void test_boolean_false(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(BOOLEAN, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp("#f", tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(2, tokens[0].lexeme_len);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 	arena_destroy(&arena);
 }
@@ -74,7 +78,9 @@ void test_character_space(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#\\space", 7);
+
+	char s[] = "#\\space";
+	lexer_init(&lexer, s, 7);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -83,8 +89,8 @@ void test_character_space(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp("#\\space", tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(7, tokens[0].lexeme_len);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 	arena_destroy(&arena);
 }
@@ -93,7 +99,9 @@ void test_character_newline(void)
 {
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
-	lexer_init(&lexer, "#\\newline", 9);
+	
+	char s[] = "#\\newline";
+	lexer_init(&lexer, s, 9);
 
 	size_t token_count = 0;
 	lex(&lexer, &arena, &token_count);
@@ -102,8 +110,8 @@ void test_character_newline(void)
 
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
-	TEST_ASSERT_EQUAL(strcmp("#\\newline", tokens[0].lexeme), 0);
-	TEST_ASSERT_EQUAL_INT(9, tokens[0].lexeme_len);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 	arena_destroy(&arena);
 }
@@ -133,10 +141,126 @@ void test_characters(void)
 		TEST_ASSERT_EQUAL_size_t(2, token_count);
 		TEST_ASSERT_EQUAL_INT(CHARACTER, tokens[0].category);
 		TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
-		TEST_ASSERT_EQUAL_INT(3, tokens[0].lexeme_len);
+		TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 
 		test_char++;
 	}
+}
+
+void test_integers(void)
+{
+	Arena arena = arena_create(sizeof(Token));
+	Lexer lexer;
+
+	char *s = "1";
+	lexer_init(&lexer, s, 1);
+
+	size_t token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	Token *tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+
+	s = "52";
+	lexer_init(&lexer, s, 2);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+
+	s = "0015";
+	lexer_init(&lexer, s, 4);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+
+	s = "2345";
+	lexer_init(&lexer, s, 4);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+}
+
+void test_integers_with_hash(void)
+{
+	Arena arena = arena_create(sizeof(Token));
+	Lexer lexer;
+
+	char *s = "1##";
+	lexer_init(&lexer, s, 3);
+
+	size_t token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	Token *tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+
+	s = "52#####";
+	lexer_init(&lexer, s, 7);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+	
+	s = "0015##";
+	lexer_init(&lexer, s, 2);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
+
+	s = "2345#";
+	lexer_init(&lexer, s, 2);
+
+	token_count = 0;
+	lex(&lexer, &arena, &token_count);
+
+	tokens = (Token *)arena.base;
+
+	TEST_ASSERT_EQUAL_size_t(2, token_count);
+	TEST_ASSERT_EQUAL_INT(NUMBER, tokens[0].category);
+	TEST_ASSERT_EQUAL(strcmp(s, tokens[0].lexeme), 0);
+	TEST_ASSERT_EQUAL_INT(strlen(s), tokens[0].lexeme_len);
 }
 
 int main(void)
@@ -149,6 +273,8 @@ int main(void)
 	RUN_TEST(test_character_space);
 	RUN_TEST(test_character_newline);
 	RUN_TEST(test_characters);
+	RUN_TEST(test_integers);
+	RUN_TEST(test_integers_with_hash);
 
 	return UNITY_END();
 }

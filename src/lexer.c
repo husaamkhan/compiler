@@ -21,9 +21,7 @@ void lexer_init(Lexer *lexer, const char *file_contents, size_t file_size)
 	lexer->lexeme_start = 0;
 }
 
-// TODO: Current character was changed to a global variable, meaning it does not
-// need to be returned. Instead of returning '\0' which doesn't seem very reliable
-// to me, we can return a status code to track EOF
+// TODO: Need to check if returning \0 may cause any issues in certain cases
 static void next_char(Lexer *lexer)
 {
 	if (lexer->cur_pos >= (int)lexer->file_size)
