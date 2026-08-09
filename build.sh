@@ -16,10 +16,12 @@ else
 	if [[ "$1" == "debug" ]]; then
 		echo "Debug target selected."
 		compiler_definitions="-DDEBUG"
+		flags="$flags -g"
 		sources="$sources tools/lexer_cli.c"
 	elif [[ "$1" == "test" ]]; then
 		echo "Test target selected."
 		compiler_definitions="-DDEBUG"
+		flags="$flags -g"
 		includes="$includes -Iexternal/unity/src"
 		sources="$sources external/unity/src/unity.c test/test_lexer.c"
 		target="test_lexer"

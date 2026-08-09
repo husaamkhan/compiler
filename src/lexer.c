@@ -4,6 +4,14 @@
 #include <string.h>
 #include <ctype.h>
 
+typedef enum
+{
+	BASE_BINARY,
+	BASE_OCTAL,
+	BASE_DECIMAL,
+	BASE_HEXADECIMAL
+} NumberBase;
+
 void lexer_init(Lexer *lexer, const char *file_contents, size_t file_size)
 {
 	LOG_DBG("Initializing lexer.");
@@ -79,122 +87,243 @@ static void handle_character(Lexer *lexer)
 	lexer->category = CHARACTER;
 }
 
-static char scan_real(Lexer *lexer, char ch)
+static void handle_digits_base_2(Lexer *lexer)
 {
-	// TODO: This is an absolutely terrible way to do this
-	typedef enum
+	LEXER_LOG_DBG(lexer, "lexing digits for binary number");
+
+	while (isdigit(lexer->cur_char))
 	{
-		SIGN_STATE, DIGITS_STATE, HASHES_STATE, DOT_STATE, DOT_DIGITS_STATE, SLASH_STATE, SLASH_DIGITS_STATE,
-		EXP_MARKER_STATE, EXP_SIGN_STATE, EXP_DIGITS_STATE
-	} ScanState;
-
-	ScanState state = SIGN_STATE;
-
-	while (1)
-	{
-		ScanState next_state = state;
-
-		switch (state)
+		if (lexer->cur_char != '0' && lexer->cur_char != '1')
 		{
-			case SIGN_STATE:
-				if (ch == '+' || ch == '-') { next_state = DIGITS_STATE;      break; }
-				// fall through
-			case DIGITS_STATE:
-				if (isdigit(ch))            { next_state = DIGITS_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '.')              { next_state = DOT_STATE;          break; }
-				if (ch == '/')              { next_state = SLASH_STATE;        break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case HASHES_STATE:
-				if (ch == '#')              { break; }
-				if (ch == '.')              { next_state = DOT_STATE;          break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case DOT_STATE:
-			case DOT_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = DOT_DIGITS_STATE;   lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;       lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == 'e' || ch == 's' || ch == 'f' || ch == 'd' || ch == 'l')
-				                            { next_state = EXP_MARKER_STATE;   break; }
-				return ch;
-
-			case SLASH_STATE:
-			case SLASH_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = SLASH_DIGITS_STATE;  lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				if (ch == '#')              { next_state = HASHES_STATE;        lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				return ch;
-
-			case EXP_MARKER_STATE:
-			case EXP_SIGN_STATE:
-				if (ch == '+' || ch == '-') { next_state = EXP_SIGN_STATE;     break; }
-				// fall through
-			case EXP_DIGITS_STATE:
-				if (isdigit(ch))            { next_state = EXP_DIGITS_STATE;   lexer->category = NUMBER; lexer->last_accepting_pos = lexer->cur_pos; break; }
-				return ch;
+			LEXER_LOG_ERR(lexer, "digit '%c' is out of range for binary number", lexer->cur_char);
+			return;
 		}
 
-		state = next_state;
+		lexer->last_accepting_pos = lexer->cur_pos;
 		next_char(lexer);
 	}
 }
 
-static void handle_number(Lexer *lexer)
+static void handle_digits_base_8(Lexer *lexer)
 {
-	next_char(lexer);
+	LEXER_LOG_DBG(lexer, "lexing digits for octal number");
 
-	// Scan <real R> = <sign_STATE> <ureal R> using a state machine
-	// States reflect what characters are valid after each symbol consumed
-	// Returns the next unprocessed character
-	LEXER_LOG_DBG(lexer, "scanning real number");
-	lexer->cur_char = scan_real(lexer, lexer->cur_char);
+	while (isdigit(lexer->cur_char))
+	{
+		if (lexer->cur_char > '7')
+		{
+			LEXER_LOG_ERR(lexer, "digit '%c' is out of range for octal number", lexer->cur_char);
+			return;
+		}
+
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+	}
+}
+
+static void handle_digits_base_10(Lexer *lexer)
+{
+	LEXER_LOG_DBG(lexer, "lexing digits for decimal number");
+
+	while (isdigit(lexer->cur_char))
+	{
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+	}
+}
+
+static void handle_digits_base_16(Lexer *lexer)
+{
+	LEXER_LOG_DBG(lexer, "lexing digits for hexadecimal number");
+
+	while (
+		isdigit(lexer->cur_char) ||
+		lexer->cur_char == 'A' || lexer->cur_char == 'a' ||
+		lexer->cur_char == 'B' || lexer->cur_char == 'b' ||
+		lexer->cur_char == 'C' || lexer->cur_char == 'c' ||
+		lexer->cur_char == 'D' || lexer->cur_char == 'd' ||
+		lexer->cur_char == 'E' || lexer->cur_char == 'e' ||
+		lexer->cur_char == 'F' || lexer->cur_char == 'f'
+	)
+	{
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+	}
+}
+
+static void handle_digits(Lexer *lexer, NumberBase base)
+{
+	switch (base)
+	{
+		case BASE_BINARY:
+			handle_digits_base_2(lexer);
+			break;
+		case BASE_OCTAL:
+			handle_digits_base_8(lexer);
+			break;
+		case BASE_DECIMAL:
+			handle_digits_base_10(lexer);
+			break;
+		default:
+			handle_digits_base_16(lexer);
+	}
+}
+
+static void handle_unspecified_digits(Lexer *lexer)
+{
+	LEXER_LOG_DBG(lexer, "lexing unspecified digits");
+
+	while (lexer->cur_char == '#')
+	{
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+	}
+}
+
+// TODO: This does not include any suffixes that are allowed in decimals
+static void handle_ureal(Lexer *lexer, NumberBase base)
+{
+	LEXER_LOG_DBG(lexer, "lexing real number");
+	
+	handle_digits(lexer, base);
+
+	if (lexer->cur_char == '.')
+	{
+		if (base != BASE_DECIMAL)
+		{
+			LEXER_LOG_ERR(lexer, "decimal point is not allowed in non-decimal numbers");
+			return;
+		}
+
+		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+
+		handle_digits(lexer, base);
+		handle_unspecified_digits(lexer);
+		return;
+	}
+
+	handle_unspecified_digits(lexer);
+
+	if (lexer->cur_char == '/')
+	{
+		if (base != BASE_DECIMAL)
+		{
+			LEXER_LOG_ERR(lexer, "fractional notation is not allowed in non-decimal numbers");
+			return;
+		}
+
+		next_char(lexer);
+		handle_digits(lexer, base);
+		handle_unspecified_digits(lexer);
+	}
+}
+
+// TODO: Based on the prefix (if provided), this function should be lexing the
+// number according to the base
+static void handle_number(Lexer *lexer, NumberBase base)
+{
+	LEXER_LOG_DBG(lexer, "lexing number");
+
+	lexer->category = NUMBER;
+
+	if (lexer->cur_char == '+' || lexer->cur_char == '-') next_char(lexer);
+	handle_ureal(lexer, base);
 
 	if (lexer->cur_char == '@')
 	{
-		// Polar complex: <real R> @ <real R>
-		LEXER_LOG_DBG(lexer, "scanning polar complex");
 		next_char(lexer);
-		lexer->cur_char = scan_real(lexer, lexer->cur_char);
-	}
-	else if (lexer->cur_char == '+' || lexer->cur_char == '-')
-	{
-		// Rectangular complex: <real R> +/- <ureal R> i  or  <real R> +/- i
-		LEXER_LOG_DBG(lexer, "scanning rectangular complex");
-		next_char(lexer);
-		lexer->cur_char = scan_real(lexer, lexer->cur_char);
+		if (lexer->cur_char == '+' || lexer->cur_char == '-') next_char(lexer);
+		handle_ureal(lexer, base);
 	}
 
-	// In R5RS, 'i' can only appear as the last character of a number
-	if (lexer->cur_char == 'i')
+	else if (lexer->cur_char == '+' || lexer->cur_char == '-')
 	{
-		lexer->category = NUMBER;
-		lexer->last_accepting_pos = lexer->cur_pos;
+		next_char(lexer);
+		if (lexer->cur_char == '+' || lexer->cur_char == '-') next_char(lexer);
+		handle_ureal(lexer, base);
+
+		if (lexer->cur_char == 'i')
+		{
+			lexer->last_accepting_pos = lexer->cur_pos;
+		}
 	}
 }
 
+// Only handles the second part of the prefix, if provided
+// The first half is handled in handle_hash(), which then calls this function
 static void handle_number_prefix(Lexer *lexer)
 {
-	// Optional second prefix component (#e/#i/#b/#o/#d/#x)
-	// Peek ahead to check without consuming
-	if (lexer->cur_pos < (int)lexer->file_size && lexer->file_contents[lexer->cur_pos] == '#')
+	// In the case where a # is read, the prefix of a number can start with
+	// either the exactness or the base. The possible options for these are:
+	// Exactness: #i, #e | Base: #b, #o, #d, #x
+
+	NumberBase base;
+	bool exactness_provided = false;
+	switch(lexer->cur_char)
 	{
-		LEXER_LOG_DBG(lexer, "second number prefix found");
-		next_char(lexer); // consume '#'
-		next_char(lexer); // consume second prefix char (e/i/b/o/d/x)
-		if (lexer->cur_char != 'i' && lexer->cur_char != 'e' && lexer->cur_char != 'b' &&
-			lexer->cur_char != 'o' && lexer->cur_char != 'd' && lexer->cur_char != 'x')
+		case 'i':
+		case 'e':
+			exactness_provided = true;
+				// fallthrough
+		case 'd':
+			base = BASE_DECIMAL;
+			break;
+		case 'b':
+			base = BASE_BINARY;
+			break;
+		case 'o':
+			base = BASE_OCTAL;
+			break;
+		case 'x':
+			base = BASE_HEXADECIMAL;
+			break;
+		default:
+			return; // invalid character in prefix
+	}
+
+
+	next_char(lexer);
+
+	// In the prefix, the exactness and base can only be given once
+	// If another hash is detected, the lexer needs to make sure that the
+	// prefix only contains one base and one exactness in any order
+	if (lexer->cur_char == '#')
+	{
+
+		next_char(lexer);
+
+		if (exactness_provided)
 		{
-			LEXER_LOG_ERR(lexer, "invalid number prefix");
-			return;
+			switch(lexer->cur_char)
+			{
+				case 'd':
+					base = BASE_DECIMAL;
+					break;
+				case 'b':
+					base = BASE_BINARY;
+					break;
+				case 'o':
+					base = BASE_OCTAL;
+					break;
+				case 'x':
+					base = BASE_HEXADECIMAL;
+					break;
+				default:
+					return; // invalid character in prefix
+			}
+		}
+
+		else
+		{
+			if (lexer->cur_char != 'i' && lexer->cur_char != 'e')
+			{
+				return;
+			}
 		}
 	}
 
-	next_char(lexer); // advance to first number character
-	handle_number(lexer);
+	handle_number(lexer, base);
 }
 
 // A # can lead to multiple categories. This function checks the next character after a #
@@ -219,21 +348,15 @@ static void handle_hash(Lexer *lexer)
 			handle_character(lexer);
 			break;
 
-		case 'i': // -+ Handle exactness
-		case 'e': // -+
-		case 'b': // -+ Handle radices
-		case 'o': //  |
-		case 'd': //  |
-		case 'x': // -+
-			// In the case where a # is read, the prefix of a number can start with either
-			// the exactness or the radix. The possible options for these are:
-			// Exactness: #i, #e | Radix: #b, #o, #d, #x
-			handle_number_prefix(lexer);
-			break;
-
 		default:
-			LEXER_LOG_ERR(lexer, "unrecognized character after '#': '%c'", lexer->cur_char);
-			break;
+			handle_number_prefix(lexer);
+
+			// If the category is none at this point, it means the lexer was unable
+			// to recognize a valid number prefix and move on to reading a number
+			if (lexer->category == NONE)
+			{
+				LEXER_LOG_ERR(lexer, "unrecognized character after '#': '%c'", lexer->cur_char);
+			}
 	}
 }
 
@@ -330,15 +453,21 @@ static void get_next_token(Lexer *lexer, Token *token)
 			{
 				if (lexer->cur_pos < (int)lexer->file_size && isdigit(lexer->file_contents[lexer->cur_pos]))
 				{
-					handle_number(lexer);
+					handle_number(lexer, BASE_DECIMAL);
 					break;
 				}
 			}
 
-			if (isdigit(lexer->cur_char))
+			else if (isdigit(lexer->cur_char))
 			{
-				handle_number(lexer);
+				handle_number(lexer, BASE_DECIMAL);
 				break;
+			}
+
+			else if (lexer->cur_char == '.')
+			{
+				next_char(lexer);
+				handle_number(lexer, BASE_DECIMAL);
 			}
 
 			handle_identifier(lexer);
