@@ -64,6 +64,7 @@ void test_character_space(void)
 void test_character_newline(void)
 {
 	assert_token("#\\newline", CHARACTER);
+	
 }
 
 void test_characters(void)
@@ -75,7 +76,9 @@ void test_characters(void)
 	{
 		char s[4] = "#\\";
 		strncat(s, &test_char, 1);
+
 		LOG_TEST("Testing character '%s'", s);
+		
 		assert_token(s, CHARACTER);
 		test_char++;
 	}
