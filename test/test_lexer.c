@@ -15,6 +15,8 @@ void tearDown(void)
 
 static void assert_token(const char *input, Category expected_category)
 {
+	LOG_TEST("--- Input: %s ---", input);
+
 	Arena arena = arena_create(sizeof(Token) * 2);
 	Lexer lexer;
 	lexer_init(&lexer, input, strlen(input) + 1);
@@ -156,6 +158,72 @@ void test_fractions(void)
 	assert_token("1/3##", NUMBER);
 }
 
+void test_signed_integers(void)
+{
+	assert_token("+3",    NUMBER);
+	assert_token("-42",   NUMBER);
+	assert_token("+0015", NUMBER);
+	assert_token("-2345", NUMBER);
+}
+
+void test_signed_reals(void)
+{
+	assert_token("+1.0",  NUMBER);
+	assert_token("-3.14", NUMBER);
+	assert_token("+0.5",  NUMBER);
+}
+
+void test_signed_fractions(void)
+{
+	assert_token("+1/2",  NUMBER);
+	assert_token("-22/7", NUMBER);
+}
+
+void test_exactness_prefix(void)
+{
+	assert_token("#e1",   NUMBER);
+	assert_token("#i1",   NUMBER);
+	assert_token("#e3.14", NUMBER);
+	assert_token("#i1/2", NUMBER);
+}
+
+void test_base_prefix_decimal(void)
+{
+	assert_token("#d42",  NUMBER);
+	assert_token("#d3.14", NUMBER);
+	assert_token("#d1/2", NUMBER);
+}
+
+void test_two_part_prefix(void)
+{
+	assert_token("#e#b101", NUMBER);
+	assert_token("#i#o77",  NUMBER);
+	assert_token("#e#x1F",  NUMBER);
+	assert_token("#b#e101", NUMBER);
+	assert_token("#x#i1F",  NUMBER);
+}
+
+void test_dot_prefix(void)
+{
+	assert_token(".5",  NUMBER);
+	assert_token(".14", NUMBER);
+}
+
+void test_rectangular_complex(void)
+{
+	assert_token("3+4i",  NUMBER);
+	assert_token("1-2i",  NUMBER);
+	assert_token("0+1i",  NUMBER);
+	assert_token("-1+2i", NUMBER);
+}
+
+void test_polar_complex(void)
+{
+	assert_token("1@2",     NUMBER);
+	assert_token("3.0@1.5", NUMBER);
+	assert_token("1/2@3/4", NUMBER);
+}
+
 int main(void)
 {
 	UNITY_BEGIN();
@@ -176,6 +244,15 @@ int main(void)
 	RUN_TEST(test_hexadecimal_integers_with_hash);
 	RUN_TEST(test_decimal_point);
 	RUN_TEST(test_fractions);
+	RUN_TEST(test_signed_integers);
+	RUN_TEST(test_signed_reals);
+	RUN_TEST(test_signed_fractions);
+	RUN_TEST(test_exactness_prefix);
+	RUN_TEST(test_base_prefix_decimal);
+	RUN_TEST(test_two_part_prefix);
+	RUN_TEST(test_dot_prefix);
+	RUN_TEST(test_rectangular_complex);
+	RUN_TEST(test_polar_complex);
 
 	return UNITY_END();
 }

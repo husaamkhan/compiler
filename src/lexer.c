@@ -219,8 +219,6 @@ static void handle_ureal(Lexer *lexer, NumberBase base)
 	}
 }
 
-// TODO: Based on the prefix (if provided), this function should be lexing the
-// number according to the base
 static void handle_number(Lexer *lexer, NumberBase base)
 {
 	LEXER_LOG_DBG(lexer, "lexing number");
@@ -321,6 +319,8 @@ static void handle_number_prefix(Lexer *lexer)
 				return;
 			}
 		}
+
+		next_char(lexer);
 	}
 
 	handle_number(lexer, base);
@@ -414,6 +414,8 @@ static void handle_string(Lexer *lexer)
 	lexer->last_accepting_pos = lexer->cur_pos;
 }
 
+// TODO: Modify lexer to skip past failing token rather than rolling back, emitting the accumulated token
+// and resuming where it left off
 static void get_next_token(Lexer *lexer, Token *token)
 {
 	lexer->category = NONE;
