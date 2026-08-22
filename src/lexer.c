@@ -470,6 +470,7 @@ static void get_next_token(Lexer *lexer, Token *token)
 			{
 				next_char(lexer);
 				handle_number(lexer, BASE_DECIMAL);
+				break;
 			}
 
 			handle_identifier(lexer);
