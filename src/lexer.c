@@ -430,6 +430,10 @@ static void get_next_token(Lexer *lexer, Token *token)
 			token->lexeme_len = 0;
 			return;
 
+		// TODO: there's really no need to emit a "WHITESPACE" token. The parser does not need this
+		// we can just check for whitespace when parsing a token that we have already recognized
+		// and use the whitespace to know when to stop lexing and emit the token, then read again for
+		// a new token
 		case ' ':
 			token->category = WHITESPACE;
 			token->lexeme = lexer->file_contents + lexer->lexeme_start;
@@ -497,6 +501,12 @@ static void get_next_token(Lexer *lexer, Token *token)
 	LEXER_LOG_DBG(lexer, "token produced: category=%d, lexeme='%.*s'", token->category, (int)token->lexeme_len, token->lexeme);
 }
 
+// TODO: same as the todo message in invalid_lexer_test.c, with the additional note that
+// we can move all the get_next_token() logic to lex(). We also don't need to pop the token
+// out of the arena when token->category == NONE anymore since we don't need to allocate a
+// token until the end where we have determined what it is. This also requires us to change
+// the return value of each function to report the status, which will allow us to propogate
+// errors.
 void lex(Lexer *lexer, Arena *arena, size_t *count_out)
 {
 	*count_out = 0;

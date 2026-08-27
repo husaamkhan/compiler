@@ -23,7 +23,7 @@ else
 		compiler_definitions="-DDEBUG"
 		flags="$flags -g"
 		includes="$includes -Iexternal/unity/src"
-		sources="$sources external/unity/src/unity.c test/test_lexer.c"
+		sources="$sources external/unity/src/unity.c test/valid_lexer_test.c test/invalid_lexer_test.c"
 		target="test_lexer"
 		test=1
 	else

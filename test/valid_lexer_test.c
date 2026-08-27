@@ -1,3 +1,10 @@
+//--------------------------------------+
+//	valid_lexer_test.c		|
+//--------------------------------------+
+// Tests single token output for valid	|
+// input cases.				|
+//--------------------------------------+
+
 #include "unity.h"
 #include <string.h>
 #include "defs.h"
@@ -26,6 +33,7 @@ static void assert_token(const char *input, Category expected_category)
 
 	Token *tokens = (Token *)arena.base;
 
+	// Asserting 2 tokens as lexer will output the expected token and the END_OF_FILE token
 	TEST_ASSERT_EQUAL_size_t(2, token_count);
 	TEST_ASSERT_EQUAL_INT(expected_category, tokens[0].category);
 	TEST_ASSERT_EQUAL_size_t(strlen(input), tokens[0].lexeme_len);
@@ -33,6 +41,8 @@ static void assert_token(const char *input, Category expected_category)
 
 void test_empty_file(void)
 {
+	// Not using assert_token here since it expects 2 tokens, one for EOF and another for
+	// the provided token, whereas this function asserts token_count == 1
 	Arena arena = arena_create(sizeof(Token));
 	Lexer lexer;
 	lexer_init(&lexer, "", 0);
@@ -66,7 +76,6 @@ void test_character_space(void)
 void test_character_newline(void)
 {
 	assert_token("#\\newline", CHARACTER);
-	
 }
 
 void test_characters(void)
